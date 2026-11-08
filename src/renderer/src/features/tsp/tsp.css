@@ -142,7 +142,7 @@
 .tsp-column {
   width: min(100% - 2 * var(--gutter), var(--content-w));
   margin: 0 auto;
-  padding: var(--space-6) 0 var(--space-8);
+  padding: var(--space-6) 0 var(--space-10);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -2246,7 +2246,6 @@
   max-width: 100%;
   max-height: min(360px, 45vh);
   overflow: auto;
-  overscroll-behavior: contain;
 }
 .tsp-tool-body:hover::-webkit-scrollbar-thumb,
 .tsp-code-body:hover::-webkit-scrollbar-thumb,
@@ -3122,13 +3121,8 @@
   flex-direction: column;
   min-width: 0;
   max-width: 100%;
-  max-height: min(380px, 50vh);
   margin-top: var(--space-1-5);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
-.tsp-process-group-body:hover::-webkit-scrollbar-thumb,
 .tsp-section[data-role^="omp.thinking"] > .tsp-section-body:hover::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
 }
@@ -3136,7 +3130,6 @@
   max-height: min(300px, 40vh);
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .tsp-process-group-body[hidden] {
   display: none;
@@ -3166,8 +3159,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-raised);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .tsp-process-group-body[data-layout="column"] > * + * {
   border-top: 0.5px solid var(--border);

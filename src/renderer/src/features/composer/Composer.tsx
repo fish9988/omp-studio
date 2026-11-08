@@ -110,7 +110,11 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
   const tspAsking = (task?.status === "needs_you" || gate) && !approval;
   // omp 的全屏面板（Agent Hub 等）开着：输入框不往主代理发（B5）。
   const screenOpen = useTspPanelOpen(taskId);
-  const hasContent = draft.text.trim() !== "" || draft.images.length > 0 || draft.files.length > 0;
+  const hasContent =
+    draft.text.trim() !== "" ||
+    draft.images.length > 0 ||
+    draft.files.length > 0 ||
+    Object.keys(draft.pastes).length > 0;
   const swapped = settings?.enterWhileRunning === "followUp";
   const tooOld = omp?.state === "ready" && omp.belowMinimum;
   // worktree 被删了：只能查看记录（和 omp 一致），输入框禁用，说明在对话流末尾的错误条里。

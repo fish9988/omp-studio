@@ -79,13 +79,23 @@ export function List(props: NodeProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealSeq]);
 
+  const isAskList = node.p["role"] === "omp.ask.options";
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isAskList && !e.ctrlKey && !e.metaKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+      const idx = Number(e.key) - 1;
+      const targetId = node.c[idx];
+      if (targetId !== undefined) {
+        e.preventDefault();
+        e.stopPropagation();
+        ctx.send({ ev: "select", sf: ctx.sf, id: node.id, item: targetId });
+        return;
+      }
+    }
     const data = encodeKey(likeOf(e.nativeEvent));
     if (data === null) return;
     e.preventDefault();
     ctx.keys(data);
   };
-
   const filter = p.filter ?? "";
   const state = useMemo<ListState>(() => ({ listId: node.id, selected, filter }), [node.id, selected, filter]);
   const style = cap === undefined ? undefined : ({ "--tspi-list-max": cap } as React.CSSProperties);
@@ -166,6 +176,8 @@ export function Item({ node, ctx }: NodeProps) {
   const hasValue = p.value !== undefined && plainText(p.value) !== "";
   const marker = askItemMarker(node.p["role"]);
   const checked = marker === "check" ? p.icon === "check" : isSelected;
+  const optMatch = marker !== null ? /\/option:(\d+)$/.exec(node.id) : null;
+  const optionNum = optMatch ? Number(optMatch[1]) + 1 : null;
 
   return (
     <div
@@ -198,6 +210,7 @@ export function Item({ node, ctx }: NodeProps) {
         </span>
       ) : null}
       <span className="tspi-item-label">
+        {optionNum !== null && <span className="tspi-ask-num">{optionNum}</span>}
         <MarkedText text={p.label} hits={hits} />
       </span>
       {hasValue && marker !== null ? (

@@ -313,6 +313,54 @@
 .tspi-item-mark {
   pointer-events: none;
 }
+.tspi-ask-num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-right: var(--space-1-5);
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+}
+.tspi-item.sel .tspi-ask-num {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tspi-ask-other-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.tspi-ask-other-input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  outline: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.tspi-ask-other-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
 .tspi-item[data-role^="omp.ask."] .tspi-item-detail {
   flex: 1 1 100%;
   padding-left: calc(16px + var(--space-2));

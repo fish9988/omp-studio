@@ -1,24 +1,56 @@
 // omp 的提问对话框（dock 里 role `omp.editor.ask`）：多题时有 Review 页，那一页没有 list，没人拿键盘，
 // Enter / Ctrl+Enter 没人接，Esc 落到 body 上还会被输入框当成"停止任务"。这里让对话框根节点自己接键盘（和 list 一样把
 // 按键编码写进伪终端），焦点被换页拆掉时拿回来；底栏按钮（`omp.btn`）画成真按钮。
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { currentLocale } from "../../../store/settings-store.ts";
 import { Button } from "../../../ui/controls.tsx";
 import { gateKeyHint } from "../fmt.ts";
-import { encodeKey } from "../keys.ts";
+import { encodeKey, encodePaste } from "../keys.ts";
 import type { NodeDomProps } from "../node-dom.ts";
 import type { NodeProps } from "../node-props.ts";
-import { useTspNode } from "../tsp-store.ts";
+import { peekTspNode, useTspNode } from "../tsp-store.ts";
 import { TspChildren, TspNode } from "../TspChildren.tsx";
 import { likeOf } from "./key-event.ts";
-
 function isBlankFocus(): boolean {
   const active = document.activeElement;
   return active === null || active === document.body;
 }
 
 export function AskGateCol(props: NodeProps & { dom: NodeDomProps }) {
-  const { ctx, dom } = props;
+  const { ctx, dom, node } = props;
   const root = useRef<HTMLDivElement>(null);
+  const [customText, setCustomText] = useState("");
+  const zh = currentLocale() === "zh-CN";
+
+  // 查找当前提问页里的 list[role="omp.ask.options"] 及其 other 项（Review 页没有 list，不显示内联输入框）
+  let askListId: string | null = null;
+  let otherItemId: string | null = null;
+  for (const cid of node.c) {
+    const child = peekTspNode(ctx.taskId, ctx.sf, cid);
+    if (child?.k === "list" && child.p["role"] === "omp.ask.options") {
+      askListId = child.id;
+      for (const itemId of child.c) {
+        const itemNode = peekTspNode(ctx.taskId, ctx.sf, itemId);
+        const role = itemNode?.p["role"];
+        if (role === "omp.ask.other" || role === "omp.ask.other.check") {
+          otherItemId = itemId;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  const submitCustomOther = () => {
+    const trimmed = customText.trim();
+    if (!trimmed || askListId === null || otherItemId === null) return;
+    ctx.send({ ev: "select", sf: ctx.sf, id: askListId, item: otherItemId });
+    setTimeout(() => {
+      ctx.keys(`${encodePaste(trimmed)}\r`);
+    }, 40);
+    setCustomText("");
+  };
+
   useEffect(() => {
     const el = root.current;
     if (el === null) return;
@@ -69,6 +101,38 @@ export function AskGateCol(props: NodeProps & { dom: NodeDomProps }) {
       onKeyDown={onKeyDown}
     >
       <TspChildren {...props} />
+      {askListId !== null && otherItemId !== null && (
+        <div className="tspi-ask-other-inline" data-testid="tspi-ask-other-inline">
+          <input
+            type="text"
+            className="tspi-ask-other-input"
+            data-testid="tspi-ask-other-input"
+            value={customText}
+            placeholder={
+              zh
+                ? "或直接在此输入 Other 自定义回答，按 Enter 提交…"
+                : "Or type custom Other answer here and press Enter…"
+            }
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submitCustomOther();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setCustomText("");
+                root.current?.focus();
+              }
+            }}
+          />
+          {customText.trim() !== "" && (
+            <Button size="sm" variant="primary" onClick={submitCustomOther} testId="tspi-ask-other-submit">
+              {zh ? "提交自定义回答" : "Submit Other"}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

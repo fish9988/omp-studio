@@ -20,8 +20,8 @@ import { takeCaretRequest, requestCaret } from "./caret-request.ts";
 import {
   buildView,
   chipTouching,
+  forceRemoveAttachment,
   insertPaste,
-  removeAttachment,
   snapSelection,
   textToViewOffset,
   viewToText,
@@ -277,7 +277,7 @@ export function ComposerInput(props: ComposerInputProps) {
         images={draft.images}
         files={draft.files}
         pastes={draft.pastes}
-        onRemove={(kind, n) => setDraft(draftKey, removeAttachment(getDraft(draftKey), kind, n))}
+        onRemove={(kind, n) => setDraft(draftKey, forceRemoveAttachment(getDraft(draftKey), kind, n))}
       />
       <div className="composer-field-wrap">
         <div ref={backdropRef} className="composer-backdrop" aria-hidden="true">

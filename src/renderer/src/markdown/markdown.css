@@ -282,7 +282,9 @@
 
 .md-codebody {
   margin: 0;
+  max-height: min(440px, 55vh);
   padding: var(--space-0-5) var(--space-3) var(--space-3);
+  overflow-y: auto;
   font-family: var(--font-mono);
   font-size: var(--fs-code);
   line-height: var(--lh-code);
@@ -290,6 +292,9 @@
   /* 长行折行，不出横向滚动条（2026-10-20） */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.md-codebody:hover::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
 }
 .md-codebody code {
   font: inherit;

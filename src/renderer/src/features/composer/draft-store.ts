@@ -2,15 +2,7 @@
 import { reportErrorNow } from "../../ui/errors.ts";
 import type { RestoredDraft, TaskId } from "../../../../shared/ipc.ts";
 import { createStore, useStoreValue } from "../../store/create-store.ts";
-import {
-  appendDraft,
-  draftFromRestored,
-  EMPTY_DRAFT,
-  persistedText,
-  reconcileDraft,
-  type Draft,
-} from "./composer-tokens.ts";
-
+import { appendDraft, draftFromRestored, EMPTY_DRAFT, persistedText, type Draft } from "./composer-tokens.ts";
 export type { Draft } from "./composer-tokens.ts";
 
 /** 和主进程 draft-handlers.ts 的 maxChars 一致。 */
@@ -31,11 +23,10 @@ export function setDraft(taskId: TaskId, draft: Draft): void {
   scheduleSave(taskId, persistedText(draft, maxPersistedChars));
 }
 
-/** 换掉文字；文字里不再引用的附件（图片、大段粘贴）跟着删。 */
+/** 换掉文字；顶部已挂载的附件（图片、文件、大段粘贴）与文字解耦保留，仅在点击附件卡片右上角 × 时移除。 */
 export function setDraftText(taskId: TaskId, text: string): void {
-  setDraft(taskId, reconcileDraft({ ...getDraft(taskId), text }));
+  setDraft(taskId, { ...getDraft(taskId), text });
 }
-
 /** 清空草稿（发送后）。 */
 export function clearDraft(taskId: TaskId): void {
   setDraft(taskId, EMPTY_DRAFT);

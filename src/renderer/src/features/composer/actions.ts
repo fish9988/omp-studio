@@ -5,7 +5,7 @@ import type { TFunction } from "../../../../shared/i18n/index.ts";
 import { pushToast } from "../dialogs/index.ts";
 import { requestStickToBottom } from "../conversation/scroll-bus.ts";
 import { appendToDraft, clearDraft, getDraft, restoreDraft } from "./draft-store.ts";
-import { buildSubmission } from "./composer-tokens.ts";
+import { buildSubmission, ensureAttachmentTokens } from "./composer-tokens.ts";
 import { stopToasts } from "./stop-outcome.ts";
 import { findStudioSlash, handledCommands, type SlashRunResult } from "./studio-slash.ts";
 import { studioSlashCommands } from "./studio-slash-table.ts";
@@ -18,8 +18,8 @@ export type Delivery = "steer" | "followUp";
  */
 export async function sendDraft(taskId: TaskId, whenBusy: Delivery, t: TFunction): Promise<void> {
   const draft = getDraft(taskId);
-  // 粘贴占位符换回原文、图片占位符按出现的编号重排（和 omp 提交时一样，composer-tokens.ts）。
-  const submission = buildSubmission(draft);
+  // 粘贴占位符换回原文、图片占位符按出现的编号重排；若用户删了文字里的 #N 但没点卡片 ×，自动补回后一起发。
+  const submission = buildSubmission(ensureAttachmentTokens(draft));
   const text = submission.text.trim();
   if (text === "" && submission.images.length === 0 && submission.files.length === 0) return;
   const studio = submission.images.length === 0 ? findStudioSlash(text, handledCommands(studioSlashCommands)) : null;

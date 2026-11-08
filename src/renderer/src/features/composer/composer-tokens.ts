@@ -198,6 +198,70 @@ export function removeAttachment(draft: Draft, kind: TokenKind, n: number): Draf
   return reconcileDraft({ ...draft, text });
 }
 
+/**
+ * 方案二（附件与文本解耦）：仅当用户点击顶部附件卡片右上角的 `×` 时，显式移除该附件及其文字占位符，
+ * 同时保留其余已挂载但文字里可能已被删掉 `#N` 芯片的附件。
+ */
+export function forceRemoveAttachment(draft: Draft, kind: TokenKind, n: number): Draft {
+  const spans = scanTokens(draft.text, draft);
+  let text = "";
+  let cursor = 0;
+  for (const span of spans) {
+    if (span.kind === kind && span.n === n) {
+      text += draft.text.slice(cursor, span.start);
+      cursor = draft.text[span.end] === " " ? span.end + 1 : span.end;
+    } else if (span.kind === kind && kind !== "paste" && span.n > n) {
+      text += draft.text.slice(cursor, span.start);
+      const nextN = span.n - 1;
+      text +=
+        kind === "image" ? imageMarker(nextN, draft.images[span.n - 1]) : fileMarker(nextN, draft.files[span.n - 1]);
+      cursor = span.end;
+    }
+  }
+  text += draft.text.slice(cursor);
+  if (kind === "image") {
+    return { ...draft, text, images: draft.images.filter((_, idx) => idx !== n - 1) };
+  }
+  if (kind === "file") {
+    return { ...draft, text, files: draft.files.filter((_, idx) => idx !== n - 1) };
+  }
+  const { [n]: _removed, ...restPastes } = draft.pastes;
+  return { ...draft, text, pastes: restPastes };
+}
+
+/**
+ * 发送前补齐：如果用户在输入框里删掉了 `#N` 芯片（或全选清空重写了文字），但顶部附件卡片仍未点 `×` 移除，
+ * 自动将未出现在文字里的附件占位符补回，确保所有挂在顶部的图片、文件和长文本粘贴都能随消息发出。
+ */
+export function ensureAttachmentTokens(draft: Draft): Draft {
+  if (draft.images.length === 0 && draft.files.length === 0 && Object.keys(draft.pastes).length === 0) return draft;
+  const spans = scanTokens(draft.text, draft);
+  const usedImages = new Set(spans.filter((s) => s.kind === "image").map((s) => s.n));
+  const usedFiles = new Set(spans.filter((s) => s.kind === "file").map((s) => s.n));
+  const usedPastes = new Set(spans.filter((s) => s.kind === "paste").map((s) => s.n));
+  const missing: string[] = [];
+  draft.images.forEach((img, idx) => {
+    const n = idx + 1;
+    if (!usedImages.has(n)) missing.push(imageMarker(n, img));
+  });
+  draft.files.forEach((file, idx) => {
+    const n = idx + 1;
+    if (!usedFiles.has(n)) missing.push(fileMarker(n, file));
+  });
+  Object.entries(draft.pastes)
+    .map(([k, v]) => [Number(k), v] as const)
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([n, content]) => {
+      if (!usedPastes.has(n)) missing.push(pasteMarker(n, content));
+    });
+  if (missing.length === 0) return draft;
+  const prefix = `${missing.join(" ")} `;
+  return {
+    ...draft,
+    text: draft.text.startsWith(" ") ? `${missing.join(" ")}${draft.text}` : `${prefix}${draft.text}`,
+  };
+}
+
 /** 把 added 接在 current 后面（空行分隔）：added 里的占位符编号顺延，免得和 current 的重号。 */
 export function appendDraft(current: Draft, added: Draft): Draft {
   if (added.text === "" && added.images.length === 0 && added.files.length === 0) return current;

@@ -16,7 +16,7 @@ import { pushToast } from "../dialogs/index.ts";
 import { blockWorktree, ensureSetupApproved, getWorktreeDraft, setWorktreeOn } from "../git/index.ts";
 import { handOverDraftTerminal, withDraftHandover } from "../terminal/index.ts";
 import { ApprovalChip } from "./ApprovalChip.tsx";
-import { buildSubmission, historyText, slotsToNames, viewToText } from "./composer-tokens.ts";
+import { buildSubmission, ensureAttachmentTokens, historyText, slotsToNames, viewToText } from "./composer-tokens.ts";
 import { recordHistory } from "./history-store.ts";
 import { ComposerInput, keepFieldFocus } from "./ComposerInput.tsx";
 import { clearDraft, getDraft, restoreDraft, setDraftText, useDraft } from "./draft-store.ts";
@@ -48,7 +48,11 @@ export function DraftComposer({ projectId, projectTools }: { projectId: ProjectI
   // 新任务默认值（项目 .omp/config.yml 会盖过全局，所以按项目读；初值和占位规则见 use-new-task-default.ts）+ 这个草稿自己选的。
   const choice = useDraftModelChoice(key);
   const { resolved, omp, models } = useNewTaskDefault(projectId, true, choice);
-  const hasContent = draft.text.trim() !== "" || draft.images.length > 0 || draft.files.length > 0;
+  const hasContent =
+    draft.text.trim() !== "" ||
+    draft.images.length > 0 ||
+    draft.files.length > 0 ||
+    Object.keys(draft.pastes).length > 0;
   const view = useDraftView(draft);
 
   useEffect(() => {
@@ -75,7 +79,7 @@ export function DraftComposer({ projectId, projectTools }: { projectId: ProjectI
 
   const send = async () => {
     const current = getDraft(key);
-    const submission = buildSubmission(current);
+    const submission = buildSubmission(ensureAttachmentTokens(current));
     const text = submission.text.trim();
     if (sending || (text === "" && submission.images.length === 0 && submission.files.length === 0)) return;
     // studio 接管的命令（/settings /usage /model …）：不创建任务，直接开 studio 的界面。

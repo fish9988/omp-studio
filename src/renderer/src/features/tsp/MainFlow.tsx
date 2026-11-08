@@ -3,7 +3,7 @@
 // 这类整段重建对话，omp 删掉旧节点重画）就不再画：终端里重建也会清掉状态行（omp 18.12.5 实录 session-tree-compacted.jsonl）。
 // 状态行最多露两行：MCP 工具多时启动的 `xdev: xd://: mounted …` 会列出全部工具名，占满一屏（2026-11-06 仓库所有者），
 // 多出的收进和工具输出一样的"N more lines"。
-import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, memo, useState, type ReactNode } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
@@ -467,7 +467,6 @@ function ProcessGroup({
   ctx: TspContext;
 }) {
   const [folded, setFolded] = useState(false);
-  const bodyRef = useRef<HTMLDivElement>(null);
   const layout = useShellValue("processRows") ?? "column";
   const label = formatProcessSummary(thoughts, tools);
   const extraTurnMs = useSessionExtras(ctx.taskId, (extras) =>
@@ -476,12 +475,6 @@ function ProcessGroup({
   const effectiveMs = durationMs > 0 ? durationMs : extraTurnMs;
   const durationText =
     effectiveMs >= 100 ? formatElapsed(effectiveMs, effectiveMs >= 1000 ? "seconds" : "short") : null;
-
-  useEffect(() => {
-    if (!running || folded) return;
-    const el = bodyRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [running, folded, ids.length]);
 
   return (
     <div className="tsp-process-group" data-layout={layout} data-testid="tsp-process-group">
@@ -508,7 +501,7 @@ function ProcessGroup({
           <ChevronDown />
         </span>
       </button>
-      <div ref={bodyRef} className="tsp-process-group-body" data-layout={layout} hidden={folded}>
+      <div className="tsp-process-group-body" data-layout={layout} hidden={folded}>
         {ids.map((id) => (
           <Fragment key={id}>
             <TspNode id={id} ctx={ctx} />
