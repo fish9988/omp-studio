@@ -3,7 +3,7 @@
 // 这类整段重建对话，omp 删掉旧节点重画）就不再画：终端里重建也会清掉状态行（omp 18.12.5 实录 session-tree-compacted.jsonl）。
 // 状态行最多露两行：MCP 工具多时启动的 `xdev: xd://: mounted …` 会列出全部工具名，占满一屏（2026-11-06 仓库所有者），
 // 多出的收进和工具输出一样的"N more lines"。
-import { Fragment, memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
@@ -12,11 +12,12 @@ import { ChevronDown, External, FileIcon } from "../../icons.tsx";
 import { currentLocale } from "../../store/settings-store.ts";
 import { openFilePreview, openInlineArtifact, type InlineArtifact } from "../file-preview/index.ts";
 import { Clamp } from "./Clamp.tsx";
+import { formatElapsed } from "./fmt.ts";
 import type { TspContext } from "./node-props.ts";
+import { useSessionExtras } from "./session-extras-store.ts";
 import { cleanGlyphs } from "./span-tokens.ts";
 import { TspNode } from "./TspChildren.tsx";
 import { useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
-
 const STATUS_NOTE_LINES = 2;
 
 interface DeliverableItem {
@@ -36,6 +37,9 @@ type MainSegment =
       ids: readonly string[];
       thoughts: number;
       tools: number;
+      durationMs: number;
+      turnIndex: number;
+      running: boolean;
       deliverables: readonly DeliverableItem[];
     };
 
@@ -45,6 +49,69 @@ function isThinkingSection(surface: DocSurface, id: string): boolean {
   const node = surface.nodes.get(id);
   const role = node?.p["role"];
   return typeof role === "string" && role.startsWith("omp.thinking");
+}
+
+function extractPlainText(surface: DocSurface, id: string): string {
+  const node = surface.nodes.get(id);
+  if (!node) return "";
+  if (typeof node.p["text"] === "string") return node.p["text"];
+  if (Array.isArray(node.p["spans"])) {
+    return (node.p["spans"] as { t?: unknown }[]).map((s) => (typeof s?.t === "string" ? s.t : "")).join("");
+  }
+  return node.c.map((cid) => extractPlainText(surface, cid)).join("");
+}
+
+function parseDurationTextMs(text: string): number {
+  const minSec = /\b(\d+)m\s*(\d+(?:\.\d+)?)s\b/i.exec(text);
+  if (minSec) return (Number(minSec[1]) * 60 + Number(minSec[2])) * 1000;
+  const sec = /\b(\d+(?:\.\d+)?)s\b/i.exec(text);
+  if (sec) return Number(sec[1]) * 1000;
+  const ms = /\b(\d+)ms\b/i.exec(text);
+  if (ms) return Number(ms[1]);
+  return 0;
+}
+
+function maxDescendantElapsedMs(surface: DocSurface, id: string): number {
+  const node = surface.nodes.get(id);
+  if (!node) return 0;
+  if (node.k === "elapsed") {
+    if (typeof node.p["stopped"] === "number" && node.p["stopped"] > 0) return node.p["stopped"];
+    if (typeof node.p["age"] === "number" && node.p["age"] > 0) return node.p["age"];
+  }
+  let max = 0;
+  for (const cid of node.c) {
+    const childMax = maxDescendantElapsedMs(surface, cid);
+    if (childMax > max) max = childMax;
+  }
+  return max;
+}
+
+function nodeDurationMs(surface: DocSurface, id: string): number {
+  const node = surface.nodes.get(id);
+  if (!node) return 0;
+  if (typeof node.p["took"] === "number" && node.p["took"] > 0) return node.p["took"];
+  if (typeof node.p["age"] === "number" && node.p["age"] > 0) return node.p["age"];
+  if (node.k === "section") {
+    const headId = typeof node.p["head"] === "string" ? node.p["head"] : `${id}/head`;
+    const headText = extractPlainText(surface, headId);
+    const parsed = parseDurationTextMs(headText);
+    if (parsed > 0) return parsed;
+  }
+  return maxDescendantElapsedMs(surface, id);
+}
+function isProcessNodeRunning(surface: DocSurface, id: string): boolean {
+  const node = surface.nodes.get(id);
+  if (!node) return false;
+  if (node.k === "tool") {
+    return node.p["status"] === "running" || node.p["status"] === "pending";
+  }
+  if (node.k === "section") {
+    if (node.p["role"] === "omp.thinking.live") return true;
+    const headId = typeof node.p["head"] === "string" ? node.p["head"] : `${id}/head`;
+    const headNode = surface.nodes.get(headId);
+    return headNode?.k === "shimmer";
+  }
+  return false;
 }
 
 function cleanDeliverablePath(raw: string): string {
@@ -188,9 +255,12 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   let runIds: string[] = [];
   let runThoughts = 0;
   let runTools = 0;
+  let runDurationMs = 0;
+  let runRunning = false;
   let runDeliverables: DeliverableItem[] = [];
+  let currentTurnIndex = -1;
 
-  const flush = () => {
+  const flush = (fallbackTurnMs = 0) => {
     if (runIds.length === 0) return;
     if (runThoughts + runTools >= 1) {
       out.push({
@@ -198,6 +268,9 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
         ids: runIds,
         thoughts: runThoughts,
         tools: runTools,
+        durationMs: runDurationMs > 0 ? runDurationMs : fallbackTurnMs,
+        turnIndex: currentTurnIndex,
+        running: runRunning,
         deliverables: dedupeDeliverables(runDeliverables),
       });
     } else {
@@ -206,16 +279,29 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
     runIds = [];
     runThoughts = 0;
     runTools = 0;
+    runDurationMs = 0;
+    runRunning = false;
     runDeliverables = [];
   };
-
   for (const id of main.c) {
     const node = surface.nodes.get(id);
     if (!node) continue;
+    if (node.k === "card" && node.p["role"] === "omp.user") {
+      flush();
+      currentTurnIndex += 1;
+      out.push({
+        kind: "item",
+        id,
+        deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+      });
+      continue;
+    }
     // 1. 工具调用（除 ask 外）：直接进过程组
     if (node.k === "tool" && node.p["role"] !== "omp.tool.ask") {
       runIds.push(id);
       runTools += 1;
+      runDurationMs += nodeDurationMs(surface, id);
+      if (isProcessNodeRunning(surface, id)) runRunning = true;
       runDeliverables.push(...extractNodeDeliverables(surface, id));
       continue;
     }
@@ -227,12 +313,23 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
       if (thoughtIds.length > 0) {
         runIds.push(...thoughtIds);
         runThoughts += thoughtIds.length;
+        for (const tid of thoughtIds) {
+          runDurationMs += nodeDurationMs(surface, tid);
+          if (isProcessNodeRunning(surface, tid)) runRunning = true;
+        }
       }
       if (otherIds.length === 0) {
         // 纯思考或空助手容器：留在当前过程组里继续往后合并
         continue;
       }
-      flush();
+      let turnUsageMs = 0;
+      for (const oid of otherIds) {
+        const onode = surface.nodes.get(oid);
+        if (onode?.p["role"] === "omp.turn.usage") {
+          turnUsageMs = parseDurationTextMs(extractPlainText(surface, oid));
+        }
+      }
+      flush(turnUsageMs);
       out.push({
         kind: "item",
         id,
@@ -272,6 +369,8 @@ function sameSegment(a: MainSegment, b: MainSegment): boolean {
     return (
       a.thoughts === b.thoughts &&
       a.tools === b.tools &&
+      a.durationMs === b.durationMs &&
+      a.running === b.running &&
       a.ids.length === b.ids.length &&
       a.ids.every((id, i) => id === b.ids[i]) &&
       sameDeliverables(a.deliverables, b.deliverables)
@@ -350,6 +449,9 @@ function ProcessGroup({
   ids,
   thoughts,
   tools,
+  durationMs,
+  turnIndex,
+  running,
   deliverables,
   after,
   ctx,
@@ -357,29 +459,56 @@ function ProcessGroup({
   ids: readonly string[];
   thoughts: number;
   tools: number;
+  durationMs: number;
+  turnIndex: number;
+  running: boolean;
   deliverables: readonly DeliverableItem[];
   after: ReadonlyMap<string, StatusNote[]>;
   ctx: TspContext;
 }) {
   const [folded, setFolded] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const layout = useShellValue("processRows") ?? "column";
   const label = formatProcessSummary(thoughts, tools);
+  const extraTurnMs = useSessionExtras(ctx.taskId, (extras) =>
+    turnIndex >= 0 ? (extras.turns[turnIndex]?.elapsedMs ?? 0) : 0,
+  );
+  const effectiveMs = durationMs > 0 ? durationMs : extraTurnMs;
+  const durationText =
+    effectiveMs >= 100 ? formatElapsed(effectiveMs, effectiveMs >= 1000 ? "seconds" : "short") : null;
+
+  useEffect(() => {
+    if (!running || folded) return;
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [running, folded, ids.length]);
 
   return (
     <div className="tsp-process-group" data-layout={layout} data-testid="tsp-process-group">
       <button
         type="button"
         className="tsp-process-summary"
+        data-running={running || undefined}
         aria-expanded={!folded}
         onClick={() => setFolded((prev) => !prev)}
         data-testid="tsp-process-summary"
       >
         <span className="tsp-process-summary-text">{label}</span>
+        {durationText !== null && (
+          <>
+            <span className="tsp-process-summary-sep" aria-hidden="true">
+              ·
+            </span>
+            <span className="tsp-process-summary-time" data-testid="tsp-process-summary-time">
+              {durationText}
+            </span>
+          </>
+        )}
         <span className="tsp-process-summary-chev" aria-hidden="true">
           <ChevronDown />
         </span>
       </button>
-      <div className="tsp-process-group-body" data-layout={layout} hidden={folded}>
+      <div ref={bodyRef} className="tsp-process-group-body" data-layout={layout} hidden={folded}>
         {ids.map((id) => (
           <Fragment key={id}>
             <TspNode id={id} ctx={ctx} />
@@ -418,6 +547,9 @@ export const MainFlow = memo(function MainFlow({ taskId, sf, ctx }: { taskId: Ta
           ids={seg.ids}
           thoughts={seg.thoughts}
           tools={seg.tools}
+          durationMs={seg.durationMs}
+          turnIndex={seg.turnIndex}
+          running={seg.running}
           deliverables={seg.deliverables}
           after={after}
           ctx={ctx}

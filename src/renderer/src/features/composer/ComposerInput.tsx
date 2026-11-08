@@ -68,7 +68,8 @@ function renderBackdrop(view: DraftView): ReactNode[] {
     );
     cursor = span.viewEnd;
   }
-  nodes.push(view.text.slice(cursor));
+  const tail = view.text.slice(cursor);
+  nodes.push(tail.endsWith("\n") ? `${tail}\n` : tail);
   return nodes;
 }
 
@@ -129,16 +130,19 @@ export function ComposerInput(props: ComposerInputProps) {
     observer.observe(field);
     return () => observer.disconnect();
   }, [fieldRef]);
-
-  // 程序改了文字之后的光标落点。
+  // 程序改了文字（如「优化提示词」、粘贴折叠）之后：立即同步 backdrop 宽度、scrollTop 和光标落点，防止粉色芯片底色与文字错位。
   useLayoutEffect(() => {
     const field = fieldRef.current;
+    const backdrop = backdropRef.current;
+    if (field && backdrop) {
+      backdrop.style.width = `${field.clientWidth}px`;
+      backdrop.scrollTop = field.scrollTop;
+    }
     const request = takeCaretRequest(draftKey);
     if (!field || request === null) return;
     const position = textToViewOffset(view, request);
     field.setSelectionRange(position, position);
-  }, [view, draftKey, fieldRef]);
-
+  }, [view, draftKey, fieldRef, shownHeight, sizedHeight]);
   const replaceView = (next: string, caretInText: number) => {
     setDraftText(draftKey, viewToText(next, getDraft(draftKey)));
     requestCaret(draftKey, caretInText);
@@ -272,6 +276,7 @@ export function ComposerInput(props: ComposerInputProps) {
       <Attachments
         images={draft.images}
         files={draft.files}
+        pastes={draft.pastes}
         onRemove={(kind, n) => setDraft(draftKey, removeAttachment(getDraft(draftKey), kind, n))}
       />
       <div className="composer-field-wrap">

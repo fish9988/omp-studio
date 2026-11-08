@@ -131,15 +131,17 @@
 /* ───────── 过程行可视化双卡选择器（复刻 process-column.css） ───────── */
 .st-process-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-2-5);
-  width: min(420px, 100%);
+  width: min(520px, 100%);
 }
 .st-process-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
   padding: var(--space-2-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -336,7 +338,13 @@
 .st-cells .ui-row {
   display: flex;
   flex-wrap: wrap;
-  row-gap: var(--space-1);
+  row-gap: var(--space-1-5);
+  padding: var(--space-1-5) 0;
+}
+/* 5 段以上的宽分段（桌面宠物）与双卡预览选择器（过程行）横跨整行，避免在双列/三列窄格里溢出重叠 */
+.st-cells .ui-row:has([data-testid="setting-mascot"]),
+.st-cells .ui-row:has([data-testid="setting-process-rows"]) {
+  grid-column: 1 / -1;
 }
 /* 关于 → 版本：omp-studio 名字右边紧跟 GitHub 图标按钮（打开项目仓库） */
 .st-about-name {
@@ -362,7 +370,22 @@
   max-width: 100%;
   margin-left: auto; /* 换到标签下面时也靠右，和同一列别的控件对齐 */
 }
-/* 文本框、标签输入：放得下就和标签并排（至少原来的宽），换到标签下面时占满整格（高级页），右边不再参差 */
+.st-cells .ui-row-control:has(> .st-process-cards) {
+  flex: 0 1 520px;
+  width: min(520px, 100%);
+}
+.st-cells .ui-row-control > .ui-seg {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: var(--seg-h);
+  max-width: 100%;
+}
+.st-cells .ui-row-control > .ui-seg > button {
+  min-height: calc(var(--seg-h) - 4px);
+}
+.st-cells .ui-row-control > .ui-select[data-fit] {
+  max-width: min(260px, 100%);
+}
 .st-cells .ui-row-control:has(> .st-tags) {
   flex: 1 1 360px;
 }

@@ -23,6 +23,76 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--bg-sunken);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.attachment.is-clickable {
+  cursor: pointer;
+}
+.attachment.is-clickable:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+.attachment-paste-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.composer-paste-modal-card {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 90vw);
+  max-height: min(640px, 82vh);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.composer-paste-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2-5) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-sunken);
+}
+.composer-paste-modal-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+.composer-paste-modal-close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.composer-paste-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.composer-paste-modal-body {
+  margin: 0;
+  padding: var(--space-4);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 .attachment-thumb {
   flex: none;

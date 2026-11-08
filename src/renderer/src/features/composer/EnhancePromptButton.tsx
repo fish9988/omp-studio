@@ -5,8 +5,10 @@ import type { TaskId } from "../../../../shared/ipc.ts";
 import { useT } from "../../i18n/use-t.ts";
 import { reportError } from "../../ui/errors.ts";
 import { pushToast } from "../dialogs/toast-store.ts";
-import { setDraftText } from "./draft-store.ts";
+import { reconcileDraft, type Draft } from "./composer-tokens.ts";
+import { getDraft, setDraft } from "./draft-store.ts";
 
+const ATTACHMENT_TOKEN_RE = /\[(Image|Paste|File) #[1-9]\d*(?:,[^\]\n]*)?\]/g;
 function SparkleIcon({ spinning }: { spinning: boolean }) {
   return (
     <svg
@@ -42,20 +44,25 @@ export function EnhancePromptButton({
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
-  const [backup, setBackup] = useState<{ original: string; enhanced: string } | null>(null);
+  const [backup, setBackup] = useState<{ originalDraft: Draft; enhancedText: string } | null>(null);
 
-  const hasText = text.trim().length > 0;
-  const canUndo = backup !== null && text === backup.enhanced;
+  const strippedText = text.replace(ATTACHMENT_TOKEN_RE, "").trim();
+  const hasText = strippedText.length > 0;
+  const canUndo = backup !== null && text === backup.enhancedText;
 
   const onEnhance = async () => {
     if (busy || !hasText || disabled) return;
-    const original = text;
+    const currentDraft = getDraft(draftKey);
+    const tokens = [...currentDraft.text.matchAll(ATTACHMENT_TOKEN_RE)].map((m) => m[0]);
     setBusy(true);
     try {
-      const enhanced = await window.studio.enhancePrompt(original, taskId);
+      const enhanced = await window.studio.enhancePrompt(strippedText, taskId);
       if (enhanced && enhanced.trim() !== "") {
-        setDraftText(draftKey, enhanced);
-        setBackup({ original, enhanced });
+        const missingTokens = tokens.filter((tok) => !enhanced.includes(tok));
+        const finalText = missingTokens.length > 0 ? `${missingTokens.join(" ")} ${enhanced.trim()}` : enhanced.trim();
+        const nextDraft = reconcileDraft({ ...currentDraft, text: finalText });
+        setDraft(draftKey, nextDraft);
+        setBackup({ originalDraft: currentDraft, enhancedText: nextDraft.text });
         pushToast({ level: "info", message: t("composer.enhanceDone") });
         onFocusField?.();
       }
@@ -68,11 +75,10 @@ export function EnhancePromptButton({
 
   const onUndo = () => {
     if (!backup) return;
-    setDraftText(draftKey, backup.original);
+    setDraft(draftKey, backup.originalDraft);
     setBackup(null);
     onFocusField?.();
   };
-
   return (
     <span className="enhance-prompt-group" data-testid="enhance-prompt-group">
       {canUndo && (
