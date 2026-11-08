@@ -7,6 +7,7 @@ import {
   historyOrders,
   limits,
   mascotCharacters,
+  preferredShells,
   processRowsLayouts,
   titleBarFades,
   type AppInfo,
@@ -132,6 +133,9 @@ export const appHandlers: HandlerGroup<
       }),
       ...(record["autoSmartRename"] !== undefined && {
         autoSmartRename: parseBoolean(record["autoSmartRename"], "autoSmartRename"),
+      }),
+      ...(record["preferredShell"] !== undefined && {
+        preferredShell: parseOneOf(record["preferredShell"], "preferredShell", preferredShells),
       }),
     });
   },

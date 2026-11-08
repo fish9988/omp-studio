@@ -6,6 +6,7 @@ import {
   type HelperThinking,
   type HistoryOrder,
   type MascotCharacter,
+  type PreferredShell,
   type ProcessRowsLayout,
   type ShellState,
 } from "../../../shared/ipc.ts";
@@ -33,9 +34,9 @@ const shellStore = createStore<ShellUiState>({
   helperModel: "smol",
   helperThinking: "off",
   autoSmartRename: false,
+  preferredShell: "auto",
   drawerOpen: false,
 });
-
 /** 只在有字段真的变了时写入：每次 set 都会通知所有订阅者（例如每次切任务都会调 setDrawerOpen(false)）。 */
 function update(patch: Partial<ShellUiState>): void {
   const current = shellStore.get();
@@ -121,6 +122,23 @@ export function setAutoSmartRename(autoSmartRename: boolean): void {
   persist({ autoSmartRename });
 }
 
+const OMP_SHELL_PATH_BY_PREF: Record<Exclude<PreferredShell, "auto">, string> = {
+  pwsh: "pwsh.exe",
+  powershell: "powershell.exe",
+  cmd: "cmd.exe",
+  "git-bash": "C:\\Program Files\\Git\\bin\\bash.exe",
+};
+
+export function setPreferredShell(preferredShell: PreferredShell): void {
+  update({ preferredShell });
+  persist({ preferredShell });
+  if (preferredShell === "auto") {
+    void window.studio.resetOmpConfig("shellPath").catch(() => {});
+  } else {
+    const exe = OMP_SHELL_PATH_BY_PREF[preferredShell];
+    void window.studio.setOmpConfig("shellPath", JSON.stringify(exe)).catch(() => {});
+  }
+}
 export function setDrawerOpen(drawerOpen: boolean): void {
   update({ drawerOpen });
 }

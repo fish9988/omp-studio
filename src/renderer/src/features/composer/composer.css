@@ -198,14 +198,18 @@
   flex: none;
 }
 .enhance-prompt-btn {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
   color: var(--text-2);
-  gap: var(--space-1);
 }
 .enhance-prompt-btn:not(:disabled):hover {
   color: var(--accent);
 }
 .enhance-prompt-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 .enhance-undo-btn {

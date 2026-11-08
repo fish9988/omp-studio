@@ -8,6 +8,7 @@ import {
   historyOrders,
   limits,
   mascotCharacters,
+  preferredShells,
   processRowsLayouts,
   type ShellState,
 } from "../../shared/ipc.ts";
@@ -29,6 +30,7 @@ const defaultShellState: ShellState = {
   helperModel: "smol",
   helperThinking: "off",
   autoSmartRename: false,
+  preferredShell: "auto",
 };
 interface WindowBounds {
   x: number;
@@ -157,6 +159,13 @@ function load(): PersistedState {
   try {
     if (raw["autoSmartRename"] !== undefined) {
       shell.autoSmartRename = parseBoolean(raw["autoSmartRename"], "autoSmartRename");
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["preferredShell"] !== undefined) {
+      shell.preferredShell = parseOneOf(raw["preferredShell"], "preferredShell", preferredShells);
     }
   } catch {
     // 保留默认值。

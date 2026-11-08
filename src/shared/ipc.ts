@@ -1019,6 +1019,8 @@ export interface ShellState {
   helperThinking?: HelperThinking;
   /** 新会话首轮回答完成后是否自动执行智能重命名。 */
   autoSmartRename?: boolean;
+  /** 首选 Shell（同时用于内置终端与 omp 的 bash 工具 shellPath）。 */
+  preferredShell?: PreferredShell;
 }
 
 export type BrandStyle = "claude" | "deepseek" | "omp";
@@ -1033,9 +1035,11 @@ export const processRowsLayouts: readonly ProcessRowsLayout[] = ["column", "flat
 export type HelperThinking = "off" | "minimal" | "low" | "medium" | "high";
 export const helperThinkingLevels: readonly HelperThinking[] = ["off", "minimal", "low", "medium", "high"];
 
+export type PreferredShell = "auto" | "pwsh" | "powershell" | "cmd" | "git-bash";
+export const preferredShells: readonly PreferredShell[] = ["auto", "pwsh", "powershell", "cmd", "git-bash"];
+
 export type HistoryOrder = "folder" | "time";
 export const historyOrders: readonly HistoryOrder[] = ["folder", "time"];
-
 /** 输入框右键菜单的编辑命令（editField），名字和 webContents 的方法一致。 */
 export const editCommands = ["undo", "cut", "copy", "paste", "selectAll"] as const;
 export type EditCommand = (typeof editCommands)[number];

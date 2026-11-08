@@ -1,7 +1,7 @@
 // 终端起哪个 shell、带什么环境变量。纯函数，平台和环境由调用方传入，单元测试直接用。
 import path from "node:path";
+import type { PreferredShell } from "../../shared/ipc.ts";
 import { prependToPath } from "../omp/launch-args.ts";
-
 export interface ShellChoice {
   /** 可执行文件的绝对路径（找不到时是裸名，交给系统报错）。 */
   file: string;
@@ -21,18 +21,28 @@ export interface ShellProbe {
  * Windows：PATH 上有 pwsh.exe 用它（PowerShell 7），否则 powershell.exe（系统自带 5.1，不在 PATH 时用 System32 里的）。
  * 其他平台：$SHELL（没有就 /bin/bash），带 `-l` 作登录 shell。
  */
-export function resolveShell(probe: ShellProbe): ShellChoice {
+export function resolveShell(probe: ShellProbe, preferred: PreferredShell = "auto"): ShellChoice {
   if (probe.platform === "win32") {
+    const systemRoot = probe.env["SystemRoot"] ?? "C:\\Windows";
+    const ps5Path = path.win32.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    const cmdPath = probe.env["ComSpec"] ?? path.win32.join(systemRoot, "System32", "cmd.exe");
+    if (preferred === "pwsh") {
+      const pwsh = probe.which("pwsh.exe") ?? "pwsh.exe";
+      return { file: pwsh, args: ["-NoLogo"], name: "pwsh.exe" };
+    }
+    if (preferred === "powershell") {
+      return { file: probe.which("powershell.exe") ?? ps5Path, args: ["-NoLogo"], name: "powershell.exe" };
+    }
+    if (preferred === "cmd") {
+      return { file: probe.which("cmd.exe") ?? cmdPath, args: [], name: "cmd.exe" };
+    }
+    if (preferred === "git-bash") {
+      const gitBash = probe.which("bash.exe") ?? "C:\\Program Files\\Git\\bin\\bash.exe";
+      return { file: gitBash, args: ["--login", "-i"], name: "bash.exe" };
+    }
     const pwsh = probe.which("pwsh.exe");
     if (pwsh !== null) return { file: pwsh, args: ["-NoLogo"], name: "pwsh.exe" };
-    const system = path.win32.join(
-      probe.env["SystemRoot"] ?? "C:\\Windows",
-      "System32",
-      "WindowsPowerShell",
-      "v1.0",
-      "powershell.exe",
-    );
-    return { file: probe.which("powershell.exe") ?? system, args: ["-NoLogo"], name: "powershell.exe" };
+    return { file: probe.which("powershell.exe") ?? ps5Path, args: ["-NoLogo"], name: "powershell.exe" };
   }
   const file = probe.env["SHELL"] || "/bin/bash";
   // -l：登录 shell，读 ~/.zprofile / ~/.bash_profile，brew、bun、~/.local/bin 才在 PATH 里（和 Terminal.app 开的终端一致）。

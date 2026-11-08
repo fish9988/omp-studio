@@ -24,6 +24,7 @@ import { runOutputSpan } from "../../../../../shared/tsp/run-output.ts";
 import { useSessionExtras } from "../session-extras-store.ts";
 import { useTaskValue } from "../../../store/index.ts";
 import { formatTurnFooter } from "../turn-footer.ts";
+import { UserMessageActions, UserMessageEditor } from "../UserMessageActions.tsx";
 
 const GAPS: ReadonlySet<TspSpace> = new Set(["none", "xs", "sm", "md", "lg"]);
 
@@ -130,11 +131,18 @@ function AssistantCol(props: NodeProps) {
   const index = useBareTurnIndex(taskId, sf, props.node.id, turnCount, running);
   const footer = useSessionExtras(taskId, (extras) => (index >= 0 ? (extras.turns[index] ?? null) : null));
   const text = useMemo(() => (footer === null ? null : formatTurnFooter(footer)), [footer]);
-  // 补的用量行是 children 之外的元素，有它就不算空。
-  const blank = useBlank(props, text !== null);
+  // omp.thinking 节点已由 MainFlow 统一提取进上方的 ProcessGroup 单列卡片渲染，这里只画正式回答与脚注。
+  const nonThoughtIds = props.node.c.filter((id) => {
+    const child = peekTspNode(taskId, sf, id);
+    const role = child?.p["role"];
+    return !(typeof role === "string" && role.startsWith("omp.thinking"));
+  });
+  const blank = nonThoughtIds.length === 0 && text === null;
   return (
     <div {...nodeDomProps(props, "tsp-col", { className: stackClasses(props.node.p), blank })}>
-      <TspChildren {...props} />
+      {nonThoughtIds.map((id) => (
+        <TspNode key={id} id={id} ctx={props.ctx} />
+      ))}
       {text !== null && (
         <div className="tsp-row" data-role="omp.turn.usage" data-restored="" title={text.title}>
           <span className="tsp-icon" aria-hidden="true">
@@ -251,9 +259,11 @@ function useKeyboardFocus(enabled: boolean): {
 export function Card(props: NodeProps) {
   const { node } = props;
   const p = node.p;
+  const isUser = p.role === "omp.user";
+  const [userEditText, setUserEditText] = useState<string | null>(null);
   const collapsible = p.collapsible === true;
   const [collapsed, toggle] = useFold(props, collapsible && p.collapsed === true);
-  const keyFocus = useKeyboardFocus(p.role === "omp.user");
+  const keyFocus = useKeyboardFocus(isUser);
   const fold = useMemo(() => (collapsible ? { collapsed, expand: toggle } : NO_FOLD), [collapsible, collapsed, toggle]);
   const headId = headChildId(node);
   const hasHead =
@@ -286,6 +296,7 @@ export function Card(props: NodeProps) {
         own: { toggle: collapsible ? toggle : undefined },
       })}
       {...keyFocus}
+      data-editing={userEditText !== null ? "" : undefined}
     >
       {hasHead && (
         <div
@@ -312,25 +323,69 @@ export function Card(props: NodeProps) {
           )}
         </div>
       )}
-      <FoldCtx.Provider value={fold}>
-        {collapsed && lines === null && collapsible ? null : lines !== null ? (
-          <Clamp lines={lines} onExpand={toggle}>
-            {body}
-          </Clamp>
-        ) : (
-          body
-        )}
-      </FoldCtx.Provider>
+      {isUser && userEditText !== null ? (
+        <UserMessageEditor
+          taskId={props.ctx.taskId}
+          sf={props.ctx.sf}
+          cardId={node.id}
+          initialText={userEditText}
+          onCancel={() => setUserEditText(null)}
+        />
+      ) : (
+        <FoldCtx.Provider value={fold}>
+          {collapsed && lines === null && collapsible ? null : lines !== null ? (
+            <Clamp lines={lines} onExpand={toggle}>
+              {body}
+            </Clamp>
+          ) : (
+            body
+          )}
+        </FoldCtx.Provider>
+      )}
+      {isUser && (
+        <UserMessageActions
+          taskId={props.ctx.taskId}
+          sf={props.ctx.sf}
+          cardId={node.id}
+          editing={userEditText !== null}
+          onStartEdit={(initial) => setUserEditText(initial)}
+          onCloseEdit={() => setUserEditText(null)}
+        />
+      )}
     </div>
   );
+}
+
+function firstThoughtLine(props: NodeProps, headId: string | null): string | null {
+  const role = props.node.p.role;
+  if (typeof role !== "string" || !role.startsWith("omp.thinking")) return null;
+  for (const cid of props.node.c) {
+    if (cid === headId) continue;
+    const child = peekTspNode(props.ctx.taskId, props.ctx.sf, cid);
+    if (child && typeof child.p.text === "string") {
+      const line =
+        child.p.text
+          .replace(/```[\s\S]*?```/g, " ")
+          .split(/\r?\n/)
+          .map((s) => s.replace(/^[#>*\-\s`]+|[`*_]+$/g, "").trim())
+          .find((s) => s.length > 0) ?? "";
+      if (line !== "") return line.length > 90 ? `${line.slice(0, 89)}…` : line;
+    }
+  }
+  return null;
 }
 
 export function Section(props: NodeProps) {
   const { node } = props;
   const p = node.p;
-  const collapsible = p.collapsible === true;
-  const [collapsed, toggle] = useFold(props, collapsible && p.collapsed === true);
+  const isThinking = typeof p.role === "string" && p.role.startsWith("omp.thinking");
   const headId = headChildId(node);
+  const headNode = headId !== null ? peekTspNode(props.ctx.taskId, props.ctx.sf, headId) : null;
+  // 照 reasoning-fold.ts：思考结束（head 从 shimmer 变成 text "Thought for Ns"）后默认自动收起，点行可随时展开。
+  const thoughtDone = isThinking && headNode?.k === "text";
+  const collapsible = p.collapsible === true;
+  const [collapsed, toggle] = useFold(props, collapsible && (p.collapsed === true || thoughtDone));
+  const previewLine = collapsed ? firstThoughtLine(props, headId) : null;
   const classes = [collapsible && "collapsible", collapsed && "collapsed"].filter(
     (c): c is string => typeof c === "string",
   );
@@ -355,6 +410,14 @@ export function Section(props: NodeProps) {
         <div className="tsp-head">
           <HeadContent props={props} headId={headId} />
         </div>
+        {previewLine !== null && (
+          <>
+            <span className="tsp-thought-dot" aria-hidden="true">
+              ·
+            </span>
+            <span className="tsp-thought-preview">{previewLine}</span>
+          </>
+        )}
       </div>
       {!collapsed && (
         <FoldCtx.Provider value={collapsible ? OPEN_FOLD : NO_FOLD}>

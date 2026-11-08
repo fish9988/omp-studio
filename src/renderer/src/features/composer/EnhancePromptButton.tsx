@@ -97,7 +97,6 @@ export function EnhancePromptButton({
         data-testid="enhance-prompt-btn"
       >
         <SparkleIcon spinning={busy} />
-        <span className="enhance-prompt-label">{busy ? t("composer.enhancing") : t("composer.enhance")}</span>
       </button>
     </span>
   );

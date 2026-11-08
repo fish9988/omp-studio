@@ -14,10 +14,10 @@ import { getTaskPool } from "../tasks/runtime.ts";
 import type { TaskPool } from "../tasks/task-pool.ts";
 import { killProcessTree } from "../platform/process-tree.ts";
 import { registerShutdownHook } from "../window/shutdown.ts";
+import { getShellState } from "../window/window-state.ts";
 import { setActiveTerminalManager } from "./active.ts";
 import { buildTerminalEnv, resolveShell } from "./shell.ts";
 import { TerminalManager } from "./terminal-manager.ts";
-
 /** 在 PATH 里找可执行文件（不看当前目录：Windows 的 CreateProcess 会先找当前目录，不能让项目里的 pwsh.exe 抢先）。 */
 function which(command: string): string | null {
   const dirs = (process.env["PATH"] ?? process.env["Path"] ?? "").split(path.delimiter).filter(Boolean);
@@ -55,7 +55,8 @@ function createManager(pool: TaskPool): TerminalManager {
         (info) => info.isDirectory(),
         () => false,
       ),
-    resolveShell: () => resolveShell({ platform: process.platform, env: process.env, which }),
+    resolveShell: () =>
+      resolveShell({ platform: process.platform, env: process.env, which }, getShellState().preferredShell ?? "auto"),
     buildEnv: () => buildTerminalEnv(process.env, managedOmpBin()),
     async spawn(shell, options) {
       // 原生模块按需加载（见文件头），静态 import 做不到。

@@ -41,28 +41,10 @@ type MainSegment =
 
 const EMPTY_SEGMENTS: readonly MainSegment[] = [];
 const EMPTY_DELIVERABLES: readonly DeliverableItem[] = [];
-function classifyProcessStep(surface: DocSurface, id: string): { thoughts: number; tools: number } | null {
+function isThinkingSection(surface: DocSurface, id: string): boolean {
   const node = surface.nodes.get(id);
-  if (!node) return null;
-  if (node.k === "tool") {
-    if (node.p["role"] === "omp.tool.ask") return null;
-    return { thoughts: 0, tools: 1 };
-  }
-  if (node.k === "col" && node.p["role"] === "omp.assistant") {
-    let thoughts = 0;
-    for (const cid of node.c) {
-      const child = surface.nodes.get(cid);
-      if (!child) continue;
-      const role = child.p["role"];
-      if (typeof role === "string" && role.startsWith("omp.thinking")) {
-        thoughts += 1;
-      } else {
-        return null;
-      }
-    }
-    return { thoughts, tools: 0 };
-  }
-  return null;
+  const role = node?.p["role"];
+  return typeof role === "string" && role.startsWith("omp.thinking");
 }
 
 function cleanDeliverablePath(raw: string): string {
@@ -107,37 +89,53 @@ function fileBadge(filePath: string): {
   };
 }
 
+function isDeliverableDocPath(filePath: string): boolean {
+  return /\.(svg|html?|md|markdown)$/i.test(filePath);
+}
+
 function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableItem[] {
   const node = surface.nodes.get(id);
   if (!node) return [];
   const items: DeliverableItem[] = [];
 
-  // 1. write / edit 工具交付的文件（优先突出 .svg / .html / .md 及所有已写入完成的文件）
+  const pushFile = (rawPath: string) => {
+    const cleaned = cleanDeliverablePath(rawPath);
+    if (cleaned === "" || !isDeliverableDocPath(cleaned)) return;
+    const parts = cleaned.split(/[\\/]/).filter(Boolean);
+    const name = parts[parts.length - 1] ?? cleaned;
+    const rel = /^[a-zA-Z]:[\\/]/.test(cleaned) || cleaned.startsWith("/") ? name : cleaned;
+    const meta = fileBadge(rel);
+    items.push({
+      key: `file:${rel}`,
+      name,
+      badge: meta.badge,
+      subtitleZh: meta.subtitleZh,
+      subtitleEn: meta.subtitleEn,
+      filePath: rel,
+    });
+  };
+
+  // 1. write / edit / read 工具涉及的 .svg / .html / .md 文档
   if (node.k === "tool" && node.p["status"] === "done") {
     const toolName = node.p["name"];
-    if (toolName === "write" || toolName === "edit") {
-      const raw =
-        (typeof node.p["href"] === "string" && node.p["href"]) ||
-        (typeof node.p["target"] === "string" && node.p["target"]) ||
-        "";
-      const cleaned = cleanDeliverablePath(raw);
-      if (cleaned !== "") {
-        const parts = cleaned.split(/[\\/]/).filter(Boolean);
-        const name = parts[parts.length - 1] ?? cleaned;
-        const meta = fileBadge(cleaned);
-        items.push({
-          key: `file:${cleaned}`,
-          name,
-          badge: meta.badge,
-          subtitleZh: meta.subtitleZh,
-          subtitleEn: meta.subtitleEn,
-          filePath: cleaned,
-        });
+    if (toolName === "write" || toolName === "edit" || toolName === "read") {
+      if (typeof node.p["target"] === "string") pushFile(node.p["target"]);
+      else if (typeof node.p["href"] === "string") pushFile(node.p["href"]);
+      for (const cid of node.c) {
+        const child = surface.nodes.get(cid);
+        if (child?.p["role"] === "omp.tool.file") {
+          if (typeof child.p["title"] === "string") pushFile(child.p["title"]);
+          else if (typeof child.p["href"] === "string") pushFile(child.p["href"]);
+          for (const gcid of child.c) {
+            const gc = surface.nodes.get(gcid);
+            if (typeof gc?.p["title"] === "string") pushFile(gc.p["title"]);
+            else if (typeof gc?.p["href"] === "string") pushFile(gc.p["href"]);
+            else if (typeof gc?.p["text"] === "string") pushFile(gc.p["text"]);
+          }
+        }
       }
     }
   }
-
-  // 2. 助手回答里的 ```html / ```svg / ```markdown 代码块交付物
   if (node.k === "col" && node.p["role"] === "omp.assistant") {
     let blockIdx = 0;
     for (const cid of node.c) {
@@ -212,20 +210,42 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   };
 
   for (const id of main.c) {
-    const step = classifyProcessStep(surface, id);
-    if (step !== null) {
+    const node = surface.nodes.get(id);
+    if (!node) continue;
+    // 1. 工具调用（除 ask 外）：直接进过程组
+    if (node.k === "tool" && node.p["role"] !== "omp.tool.ask") {
       runIds.push(id);
-      runThoughts += step.thoughts;
-      runTools += step.tools;
+      runTools += 1;
       runDeliverables.push(...extractNodeDeliverables(surface, id));
-    } else {
+      continue;
+    }
+    // 2. 助手容器（omp.assistant）：把其中的 omp.thinking 思考块提取进过程组；如果还有正式回答（md / error / usage），
+    //    先结算过程组，再画助手容器（AssistantCol 里会跳过已被过程组接管的 omp.thinking 子节点）。
+    if (node.k === "col" && node.p["role"] === "omp.assistant") {
+      const thoughtIds = node.c.filter((cid) => isThinkingSection(surface, cid));
+      const otherIds = node.c.filter((cid) => !isThinkingSection(surface, cid));
+      if (thoughtIds.length > 0) {
+        runIds.push(...thoughtIds);
+        runThoughts += thoughtIds.length;
+      }
+      if (otherIds.length === 0) {
+        // 纯思考或空助手容器：留在当前过程组里继续往后合并
+        continue;
+      }
       flush();
       out.push({
         kind: "item",
         id,
         deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
       });
+      continue;
     }
+    flush();
+    out.push({
+      kind: "item",
+      id,
+      deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+    });
   }
   flush();
   return out;

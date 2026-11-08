@@ -10,12 +10,19 @@ import {
   type IdleClose,
   type LocalePreference,
   type MascotCharacter,
+  type PreferredShell,
 } from "../../../../shared/ipc.ts";
 import type { MessageKey } from "../../../../shared/i18n/index.ts";
 import { chordKeys } from "../../../../shared/tsp/omp-keybindings.ts";
 import { useT } from "../../i18n/use-t.ts";
 import { shortcutKeys } from "../../app/platform-keys.ts";
-import { setBrandStyle, setMascotCharacter, setProcessRowsLayout, useShellValue } from "../../app/shell-store.ts";
+import {
+  setBrandStyle,
+  setMascotCharacter,
+  setPreferredShell,
+  setProcessRowsLayout,
+  useShellValue,
+} from "../../app/shell-store.ts";
 import { useAppInfo, useSettings } from "../../store/index.ts";
 import { Badge, Button, Row, SectionHead, Segmented, Switch } from "../../ui/controls.tsx";
 import { reportError } from "../../ui/errors.ts";
@@ -121,7 +128,11 @@ export function GeneralSection() {
     value,
     label: t(`settings.idleClose.${value}`),
   }));
-
+  const preferredShell = useShellValue("preferredShell") ?? "auto";
+  const shellOptions = (["auto", "pwsh", "powershell", "cmd", "git-bash"] as const).map((value) => ({
+    value,
+    label: t(`settings.preferredShell.${value}`),
+  }));
   return (
     <>
       <SectionHead title={t("settings.appearance")} />
@@ -313,6 +324,18 @@ export function GeneralSection() {
               labelledBy={labelId}
               onChange={(next) => void window.studio.setToolHeadsOnly(next)}
               testId="setting-tool-heads-only"
+            />
+          )}
+        </Row>
+        <Row label={t("settings.preferredShell")} info={t("settings.preferredShell.desc")}>
+          {(labelId) => (
+            <Select<PreferredShell>
+              size="sm"
+              value={preferredShell}
+              options={shellOptions}
+              labelledBy={labelId}
+              onChange={(next) => setPreferredShell(next)}
+              testId="setting-preferred-shell"
             />
           )}
         </Row>

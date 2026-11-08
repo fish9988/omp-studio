@@ -2815,14 +2815,21 @@
 
 /* ───────────────────────── omp 的区块（按 role；omp 自己的命名，不在规范里） ───────────────────────── */
 
-/* 用户消息：靠右的气泡，复制 / 回退 / 时间在悬停时从气泡上方出来 */
+/* 用户消息：靠右的气泡，上方是 omp 原始时间/复制，右下方是 DSH 同款「撤回回退 / 原位编辑 / 分叉」操作栏 */
 .tsp-card[data-role="omp.user"] {
+  position: relative;
   align-self: flex-end;
   max-width: 82%;
   margin-top: var(--space-2);
+  margin-bottom: var(--space-4);
   background: var(--bg-bubble);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
   border-radius: 16px;
+}
+.tsp-card[data-role="omp.user"][data-editing] {
+  width: min(560px, 82%);
+  background: transparent;
+  box-shadow: none;
 }
 .tsp-card[data-role="omp.user"] .tsp-card-body {
   padding: var(--space-2-5) var(--space-3-5);
@@ -2877,7 +2884,98 @@
 .tsp-icon[role="button"]:focus-visible {
   outline: 2px solid var(--focus-ring);
 }
-/* 表情反应（omp 的 tui.reactions）只是装饰，终端里也点不了：不画成胶囊按钮 */
+/* 用户气泡右下角的「撤回回退 / 编辑重发 / 从此分叉」操作栏与原位编辑器（复刻 message-actions.css） */
+.tsp-user-actions {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  padding-top: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tsp-card[data-role="omp.user"]:hover .tsp-user-actions,
+.tsp-card[data-role="omp.user"][data-kbd-focus] .tsp-user-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.tsp-user-action-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.tsp-user-action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tsp-user-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tsp-user-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+.tsp-user-editor-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  resize: vertical;
+}
+.tsp-user-editor-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.tsp-user-editor-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.tsp-user-editor-cancel,
+.tsp-user-editor-save {
+  height: 28px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.tsp-user-editor-save {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+.tsp-user-editor-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .tsp-badge[data-role="omp.reaction"] {
   height: auto;
   padding: 0;
@@ -2961,11 +3059,12 @@
   display: none;
 }
 
-/* ───────── 过程组汇总头与单列/平铺容器（复刻 chat-fold 与 process-column） ───────── */
+/* ───────── 过程组汇总头与单列/平铺容器（严格对齐 dsh-claude-style chat-fold 与 process-column.css） ───────── */
 .tsp-process-group {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  margin-bottom: var(--space-1);
 }
 .tsp-process-summary {
   align-self: flex-start;
@@ -3009,37 +3108,84 @@
 .tsp-process-group-body[hidden] {
   display: none;
 }
-/* 单列卡片模式（Column）：整个过程组共用一张 8px 圆角 + 1px 描边白底卡片，内部行间用 0.5px 分割线隔开；
-   用 inset box-shadow 画外框，零像素偏移，保证内部工具卡片左缘与正文严格对齐。 */
+/* 思考行的单行摘要预览 */
+.tsp-thought-dot {
+  flex: none;
+  color: var(--text-3);
+  margin-inline: 2px;
+}
+.tsp-thought-preview {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-3);
+  font-style: normal;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 单列卡片模式（Column，对齐 process-column.css）：
+   - 外层 8px 圆角 + 1px 实线描边（用外圈 0 0 0 1px box-shadow 画，不改变内部元素 x 坐标）
+   - 相邻两行之间 0.5px 分割线
+   - 每行高 36px，左右内边距 12px，工具行隐藏前导图标（>_ 等），思考行正体显示 + 右侧对齐折叠箭头 */
 .tsp-process-group-body[data-layout="column"] {
-  border-radius: var(--radius-md);
+  margin-inline: -1px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--bg-raised);
-  box-shadow: inset 0 0 0 1px var(--border);
   overflow: hidden;
 }
-.tsp-process-group-body[data-layout="column"] > .tsp-col[data-role="omp.assistant"] {
-  gap: 0;
+.tsp-process-group-body[data-layout="column"] > * + * {
+  border-top: 0.5px solid var(--border);
 }
-.tsp-process-group-body[data-layout="column"] .tsp-section[data-role^="omp.thinking"] {
-  padding: var(--space-1) var(--space-3);
-  box-shadow: inset 0 -0.5px 0 var(--border);
-}
-.tsp-process-group-body[data-layout="column"] .tsp-section[data-role^="omp.thinking"] > .tsp-section-head {
-  min-height: 28px;
+.tsp-process-group-body[data-layout="column"] > .tsp-section[data-role^="omp.thinking"] > .tsp-section-head {
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1-5) var(--space-3);
   font-style: normal;
+  color: var(--text-2);
 }
-.tsp-process-group-body[data-layout="column"] > .tsp-tool.card.st-done:not([data-tone]),
-.tsp-process-group-body[data-layout="column"] > .tsp-tool.card.st-pending:not([data-tone]) {
+.tsp-process-group-body[data-layout="column"]
+  > .tsp-section[data-role^="omp.thinking"]
+  > .tsp-section-head
+  > .tsp-head {
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+.tsp-process-group-body[data-layout="column"]
+  > .tsp-section[data-role^="omp.thinking"]
+  > .tsp-section-head
+  > .tsp-chev {
+  margin-left: auto;
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-section[data-role^="omp.thinking"] > .tsp-section-body {
+  padding: 0 var(--space-3) var(--space-2-5);
+  margin-left: 0;
+  box-shadow: none;
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-tool {
   background: transparent;
   border-radius: 0;
-  box-shadow: inset 0 -0.5px 0 var(--border);
+  box-shadow: none;
 }
-.tsp-process-group-body[data-layout="column"] > .tsp-tool.card:last-child:not([data-tone]) {
-  box-shadow: inset 0 0 0 1px var(--border);
+.tsp-process-group-body[data-layout="column"] > .tsp-tool > .tsp-tool-head {
+  min-height: 36px;
+  padding: var(--space-1-5) var(--space-3);
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-tool > .tsp-tool-head > .tsp-tool-ic {
+  display: none;
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-tool.inline > .tsp-tool-body {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2-5);
+  box-shadow: none;
 }
 /* 平铺极简模式（Flat）：无外框，工具行在折叠且无预览时褪去灰底色块，保持极简平铺列表感 */
 .tsp-process-group-body[data-layout="flat"] {
-  gap: var(--space-1-5);
+  gap: var(--space-1);
+}
+.tsp-process-group-body[data-layout="flat"] > .tsp-section[data-role^="omp.thinking"] > .tsp-section-head {
+  font-style: normal;
 }
 .tsp-process-group-body[data-layout="flat"] > .tsp-tool.card.collapsed.nopreview.st-done:not([data-tone]) {
   background: transparent;
