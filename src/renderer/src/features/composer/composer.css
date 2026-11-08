@@ -7,9 +7,10 @@
   z-index: calc(var(--z-sticky) + 1);
   flex: none;
   container-type: inline-size;
-  width: min(100% - 2 * var(--gutter), var(--content-w));
+  width: min(calc(100% - 28px), calc(var(--content-w) + var(--composer-grow-w, 0px)));
   margin: 0 auto;
   padding-bottom: var(--space-4);
+  transition: width 180ms var(--ease-out);
 }
 /* 内容从输入框后面淡出，而不是被切断。 */
 .composer-stack::before {
@@ -179,7 +180,7 @@
   display: block;
   width: 100%;
   min-height: var(--lh-prose);
-  max-height: min(40vh, calc(var(--lh-prose) * 12));
+  max-height: min(55vh, calc(var(--lh-prose) * 18));
   padding: 0;
   border: 0;
   outline: 0;

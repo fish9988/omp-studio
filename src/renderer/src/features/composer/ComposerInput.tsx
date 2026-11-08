@@ -130,10 +130,26 @@ export function ComposerInput(props: ComposerInputProps) {
     observer.observe(field);
     return () => observer.disconnect();
   }, [fieldRef]);
-  // 程序改了文字（如「优化提示词」、粘贴折叠）之后：立即同步 backdrop 宽度、scrollTop 和光标落点，防止粉色芯片底色与文字错位。
+  // 随着输入文字增多（字数或行数增长），自动向外平滑加宽 .composer-stack（最多额外加宽 420px 直至面板边距），清空后自动复原；
+  // 同时同步 backdrop 宽度、scrollTop 和光标落点，防止粉色芯片底色与文字错位。
   useLayoutEffect(() => {
     const field = fieldRef.current;
     const backdrop = backdropRef.current;
+    const stack = field?.closest<HTMLElement>(".composer-stack");
+    const emptyDraft = field?.closest<HTMLElement>(".empty-draft");
+    if (stack) {
+      const len = view.text.length;
+      const lines = view.text.split("\n").length;
+      const score = Math.max(len - 24, (lines - 1) * 60, 0);
+      const growPx = score > 0 ? Math.min(480, Math.round(score * 1.8)) : 0;
+      if (growPx > 0) {
+        stack.style.setProperty("--composer-grow-w", `${growPx}px`);
+        emptyDraft?.style.setProperty("--composer-grow-w", `${growPx}px`);
+      } else {
+        stack.style.removeProperty("--composer-grow-w");
+        emptyDraft?.style.removeProperty("--composer-grow-w");
+      }
+    }
     if (field && backdrop) {
       backdrop.style.width = `${field.clientWidth}px`;
       backdrop.scrollTop = field.scrollTop;
@@ -289,7 +305,11 @@ export function ComposerInput(props: ComposerInputProps) {
           data-composer-input
           data-testid="composer-input"
           data-sized={sizedHeight !== null || undefined}
-          style={sizedHeight === null ? undefined : { height: sizedHeight }}
+          style={
+            sizedHeight === null
+              ? undefined
+              : { minHeight: sizedHeight, ...(Number.isFinite(bounds.max) ? { maxHeight: bounds.max } : {}) }
+          }
           rows={1}
           spellCheck={false}
           value={view.text}

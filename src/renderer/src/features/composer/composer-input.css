@@ -191,10 +191,10 @@
   /* 没拖过时按内容自动增高，上下限是 .composer-field 的 min-height / max-height（不用每次按键量 scrollHeight） */
   field-sizing: content;
 }
-/* 拖过：定高（行内 style 的 height，已夹到 [一行, 主区 60%]） */
+/* 拖过：以拖出的高度作为 min-height 下限，文字更多时仍可继续随内容自动撑高到 max-height（主区 60%） */
 .composer-field[data-sized] {
-  max-height: none;
-  field-sizing: fixed;
+  max-height: min(60vh, calc(var(--lh-prose) * 22));
+  field-sizing: content;
 }
 .composer-chip {
   border-radius: var(--radius-sm);

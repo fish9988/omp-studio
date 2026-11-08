@@ -295,6 +295,9 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  width: calc(min(100%, var(--content-w)) + 2 * var(--gutter));
+  align-self: center;
+  width: calc(min(100%, var(--content-w)) + var(--composer-grow-w, 0px) + 2 * var(--gutter));
+  max-width: calc(100vw - var(--sidebar-w, 240px));
   margin-inline: calc(var(--gutter) * -1);
+  transition: width 180ms var(--ease-out);
 }

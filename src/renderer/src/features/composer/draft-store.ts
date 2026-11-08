@@ -3,6 +3,7 @@ import { reportErrorNow } from "../../ui/errors.ts";
 import type { RestoredDraft, TaskId } from "../../../../shared/ipc.ts";
 import { createStore, useStoreValue } from "../../store/create-store.ts";
 import { appendDraft, draftFromRestored, EMPTY_DRAFT, persistedText, type Draft } from "./composer-tokens.ts";
+import { commitFieldHeight } from "./field-height-store.ts";
 export type { Draft } from "./composer-tokens.ts";
 
 /** 和主进程 draft-handlers.ts 的 maxChars 一致。 */
@@ -27,9 +28,10 @@ export function setDraft(taskId: TaskId, draft: Draft): void {
 export function setDraftText(taskId: TaskId, text: string): void {
   setDraft(taskId, { ...getDraft(taskId), text });
 }
-/** 清空草稿（发送后）。 */
+/** 清空草稿（发送后）：同时复原手动拉高的输入框高度，回到紧凑单行。 */
 export function clearDraft(taskId: TaskId): void {
   setDraft(taskId, EMPTY_DRAFT);
+  commitFieldHeight(null);
 }
 
 // ───── 持久化：文字经主进程存盘（防抖），图片不存 ─────
