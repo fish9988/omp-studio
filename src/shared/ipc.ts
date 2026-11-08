@@ -1009,15 +1009,20 @@ export interface ShellState {
   chatWidth?: number;
   /** 顶栏与新任务页的品牌标志风格（Claude / DeepSeek / OMP）。 */
   brandStyle?: BrandStyle;
-  /** 输入框右上角的桌面宠物形象（Claude 像素蟹 / DeepSeek 小鲸鱼 / OMP 像素 π / 关闭）。 */
+  /** 输入框右上角的桌面宠物形象（Claude 像素蟹 / DeepSeek 小鲸鱼 / DeepSeek 鲸鱼娘 / OMP 像素 π / 关闭）。 */
   mascot?: MascotCharacter;
+  /** 对话过程行排版（单列卡片 column / 平铺极简 flat）。 */
+  processRows?: ProcessRowsLayout;
 }
 
 export type BrandStyle = "claude" | "deepseek" | "omp";
 export const brandStyles: readonly BrandStyle[] = ["claude", "deepseek", "omp"];
 
-export type MascotCharacter = "clawd" | "deepy" | "omp" | "off";
-export const mascotCharacters: readonly MascotCharacter[] = ["clawd", "deepy", "omp", "off"];
+export type MascotCharacter = "clawd" | "deepy" | "whalegirl" | "omp" | "off";
+export const mascotCharacters: readonly MascotCharacter[] = ["clawd", "deepy", "whalegirl", "omp", "off"];
+
+export type ProcessRowsLayout = "column" | "flat";
+export const processRowsLayouts: readonly ProcessRowsLayout[] = ["column", "flat"];
 
 export type HistoryOrder = "folder" | "time";
 export const historyOrders: readonly HistoryOrder[] = ["folder", "time"];

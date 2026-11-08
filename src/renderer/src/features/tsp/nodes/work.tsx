@@ -252,12 +252,18 @@ export function Tool(props: NodeProps) {
     </Fragment>
   ));
   const body = <div className="tsp-tool-body">{bodyNodes}</div>;
+  // web_search 没有结构化 omp.tool.files 来源卡片（如 Parallel / Exa 原始网页文本）时，折叠状态不露 5 行杂乱长文本（点开看全文）。
+  const hasWebSources =
+    p.name === "web_search" &&
+    childIds.some((id) => peekTspNode(ctx.taskId, ctx.sf, id)?.p["role"] === "omp.tool.files");
+  const hideCollapsedPreview = headsOnly || (p.name === "web_search" && !hasWebSources);
+
   let content: ReactNode = null;
   let fold = collapsible ? OPEN_FOLD : NO_FOLD;
   const hasBody = childIds.length > 0;
   if (!hasBody) content = null;
   else if (!collapsed) content = body;
-  else if (headsOnly) content = null;
+  else if (hideCollapsedPreview) content = null;
   else if (preview.mode === "children") {
     fold = previewFold;
     content = body;
@@ -275,7 +281,7 @@ export function Tool(props: NodeProps) {
     inline ? "inline" : "card",
     collapsible && "collapsible",
     collapsed && "collapsed",
-    collapsed && (preview.mode === "none" || !hasBody || headsOnly) && "nopreview",
+    collapsed && (preview.mode === "none" || !hasBody || hideCollapsedPreview) && "nopreview",
     `st-${status}`,
   ].filter((c): c is string => typeof c === "string");
 

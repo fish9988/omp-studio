@@ -111,9 +111,10 @@ export function PixelLogo({
   }
 
   if (brand === "deepseek") {
-    const markH = unit <= 2 ? 17 : unit <= 4 ? 21 : 26;
+    // 照 sidebar.css：18px 字高基准，鲸鱼标与 deepseek 字标同着官方深海蓝 #4D6BFE
+    const markH = unit <= 2 ? 18 : unit <= 4 ? 22 : 28;
     const markW = Math.round((markH * 23.16) / 17.04);
-    const wordH = unit <= 2 ? 17 : unit <= 4 ? 21 : 26;
+    const wordH = unit <= 2 ? 18 : unit <= 4 ? 22 : 28;
     const wordW = Math.round((wordH * 96) / 24);
     return (
       <span
@@ -128,7 +129,7 @@ export function PixelLogo({
         </svg>
         <svg className="claude-wordmark" width={wordW} height={wordH} viewBox="26 0 96 24" aria-hidden="true">
           {DEEPSEEK_WORD_PATHS.map((d, idx) => (
-            <path key={idx} fill="var(--text)" d={d} />
+            <path key={idx} fill="#4D6BFE" d={d} />
           ))}
         </svg>
         {version && (
@@ -140,8 +141,9 @@ export function PixelLogo({
     );
   }
 
+  // 照 sidebar.css：18px 字高基准，星芒标与 Claude 衬线字标
   const markSize = unit <= 2 ? 18 : unit <= 4 ? 22 : 28;
-  const wordHeight = unit <= 2 ? 15 : unit <= 4 ? 19 : 24;
+  const wordHeight = unit <= 2 ? 18 : unit <= 4 ? 22 : 28;
   const wordWidth = Math.round((wordHeight * 512.22) / 121.54);
   return (
     <span

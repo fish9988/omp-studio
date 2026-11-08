@@ -5,6 +5,7 @@ import {
   type BrandStyle,
   type HistoryOrder,
   type MascotCharacter,
+  type ProcessRowsLayout,
   type ShellState,
 } from "../../../shared/ipc.ts";
 import { defaultTerminalHeight } from "../../../shared/ui/terminal-model.ts";
@@ -27,6 +28,7 @@ const shellStore = createStore<ShellUiState>({
   chatWidth: 0,
   brandStyle: "claude",
   mascot: "clawd",
+  processRows: "column",
   drawerOpen: false,
 });
 
@@ -95,6 +97,10 @@ export function setMascotCharacter(mascot: MascotCharacter): void {
   persist({ mascot });
 }
 
+export function setProcessRowsLayout(processRows: ProcessRowsLayout): void {
+  update({ processRows });
+  persist({ processRows });
+}
 export function setDrawerOpen(drawerOpen: boolean): void {
   update({ drawerOpen });
 }

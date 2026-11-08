@@ -128,6 +128,112 @@
   background: var(--control-on);
   box-shadow: var(--shadow-1);
 }
+/* ───────── 过程行可视化双卡选择器（复刻 process-column.css） ───────── */
+.st-process-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2-5);
+  width: min(420px, 100%);
+}
+.st-process-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  color: var(--text-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.st-process-card:hover {
+  border-color: var(--border-strong);
+}
+.st-process-card[data-active] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--text);
+}
+.st-process-card-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-align: center;
+}
+.st-process-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-2xs);
+  line-height: 16px;
+}
+.st-process-sample-head {
+  color: var(--text-3);
+  font-weight: var(--fw-medium);
+}
+.st-process-sample-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.st-process-sample[data-layout="column"] .st-process-sample-body {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+}
+.st-process-sample-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+.st-process-sample[data-layout="column"] .st-process-sample-row {
+  min-height: 24px;
+  padding-inline: var(--space-2);
+}
+.st-process-sample[data-layout="column"] .st-process-sample-row + .st-process-sample-row {
+  border-top: 0.5px solid var(--border);
+}
+.st-process-sample-icon {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+}
+.st-process-sample[data-layout="column"] .st-process-sample-icon {
+  display: none;
+}
+.st-process-sample[data-layout="column"] .st-process-sample-row[data-kind="thought"] .st-process-sample-title,
+.st-process-sample[data-layout="column"] .st-process-sample-row[data-kind="thought"] .st-process-sample-sep {
+  display: none;
+}
+.st-process-sample-title {
+  flex: none;
+}
+.st-process-sample-sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  margin-inline: 5px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.st-process-sample-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 /* ───────── 内容 ───────── */
 
 .settings {

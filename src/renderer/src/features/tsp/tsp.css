@@ -2961,6 +2961,90 @@
   display: none;
 }
 
+/* ───────── 过程组汇总头与单列/平铺容器（复刻 chat-fold 与 process-column） ───────── */
+.tsp-process-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tsp-process-summary {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 26px;
+  padding: var(--space-0-5) var(--space-1-5);
+  margin-left: calc(var(--space-1-5) * -1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.tsp-process-summary:hover {
+  color: var(--text-2);
+  background: var(--bg-hover);
+}
+.tsp-process-summary-chev {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tsp-process-summary[aria-expanded="false"] .tsp-process-summary-chev {
+  transform: rotate(-90deg);
+}
+.tsp-process-group-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-top: var(--space-1-5);
+}
+.tsp-process-group-body[hidden] {
+  display: none;
+}
+/* 单列卡片模式（Column）：整个过程组共用一张 8px 圆角 + 1px 描边白底卡片，内部行间用 0.5px 分割线隔开；
+   用 inset box-shadow 画外框，零像素偏移，保证内部工具卡片左缘与正文严格对齐。 */
+.tsp-process-group-body[data-layout="column"] {
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-col[data-role="omp.assistant"] {
+  gap: 0;
+}
+.tsp-process-group-body[data-layout="column"] .tsp-section[data-role^="omp.thinking"] {
+  padding: var(--space-1) var(--space-3);
+  box-shadow: inset 0 -0.5px 0 var(--border);
+}
+.tsp-process-group-body[data-layout="column"] .tsp-section[data-role^="omp.thinking"] > .tsp-section-head {
+  min-height: 28px;
+  font-style: normal;
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-tool.card.st-done:not([data-tone]),
+.tsp-process-group-body[data-layout="column"] > .tsp-tool.card.st-pending:not([data-tone]) {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: inset 0 -0.5px 0 var(--border);
+}
+.tsp-process-group-body[data-layout="column"] > .tsp-tool.card:last-child:not([data-tone]) {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+/* 平铺极简模式（Flat）：无外框，工具行在折叠且无预览时褪去灰底色块，保持极简平铺列表感 */
+.tsp-process-group-body[data-layout="flat"] {
+  gap: var(--space-1-5);
+}
+.tsp-process-group-body[data-layout="flat"] > .tsp-tool.card.collapsed.nopreview.st-done:not([data-tone]) {
+  background: transparent;
+  box-shadow: none;
+}
 /* /jobs 弹窗（omp.overlay.jobs）照 studio 自己的对话框排（2026-10-25）：标题栏、左边作业列表（侧栏底色、整列高）、
    右边详情自己滚动、底栏（摘要 + Close）钉在最下面；卡片高度固定，切作业时不跳。详情里命令 / 事实 / 进度 / 输出
    各成一段，段间 --space-4；进度小部件放在浅底块里，输出放在下沉底的终端块里。 */

@@ -6,6 +6,7 @@ import {
   historyOrders,
   limits,
   mascotCharacters,
+  processRowsLayouts,
   titleBarFades,
   type AppInfo,
   type HandlerGroup,
@@ -117,6 +118,9 @@ export const appHandlers: HandlerGroup<
       }),
       ...(record["mascot"] !== undefined && {
         mascot: parseOneOf(record["mascot"], "mascot", mascotCharacters),
+      }),
+      ...(record["processRows"] !== undefined && {
+        processRows: parseOneOf(record["processRows"], "processRows", processRowsLayouts),
       }),
     });
   },

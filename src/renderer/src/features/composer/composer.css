@@ -52,6 +52,85 @@
     var(--shadow-composer),
     0 0 0 3px var(--bg-hover);
 }
+/* ── 桌面宠物精灵表窗口与条带机（完整移植自 mascot-frame.css / crab.css / whale.css / whale-girl.css） ── */
+.composer-mascot {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.composer-mascot-clawd {
+  right: 0;
+  bottom: 100%;
+  width: 104px;
+  height: 72px;
+}
+.composer-mascot-deepy {
+  right: 8px;
+  bottom: calc(100% - 4px);
+  width: 104px;
+  height: 104px;
+}
+.composer-mascot-whalegirl {
+  right: 8px;
+  bottom: calc(100% - 12px);
+  width: 138px;
+  height: 132px;
+}
+.composer-mascot-sprite {
+  position: absolute;
+  left: calc(var(--mascot-x, 0) * 2px);
+  top: calc(var(--mascot-y, 0) * 2px);
+  width: calc(var(--mascot-w, 0) * 2px);
+  height: calc(var(--mascot-h, 0) * 2px);
+  overflow: hidden;
+}
+.composer-mascot-strip {
+  position: relative;
+  display: block;
+  width: calc(var(--mascot-cell-w, 0) * var(--mascot-columns, 8) * 2px);
+  height: calc(var(--mascot-strip-h, 0) * 2px);
+  background-image: var(--mascot-sheet, none);
+  background-repeat: no-repeat;
+  background-size: calc(var(--mascot-cell-w, 0) * var(--mascot-columns, 8) * 2px) auto;
+}
+.composer-mascot-clawd .composer-mascot-strip,
+.composer-mascot-whalegirl .composer-mascot-strip {
+  image-rendering: pixelated;
+}
+.composer-mascot-clawd .composer-mascot-strip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--text-3);
+  -webkit-mask: var(--crab-ink, none) no-repeat 0 0 / 100% 100%;
+  mask: var(--crab-ink, none) no-repeat 0 0 / 100% 100%;
+  image-rendering: pixelated;
+}
+.composer-mascot-hit {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+}
+.composer-mascot-clawd .composer-mascot-hit {
+  left: 48px;
+  top: 40px;
+  width: 48px;
+  height: 32px;
+}
+.composer-mascot-deepy .composer-mascot-hit {
+  left: 24px;
+  top: 60px;
+  width: 64px;
+  height: 36px;
+}
+.composer-mascot-whalegirl .composer-mascot-hit {
+  left: 24px;
+  top: 20px;
+  width: 104px;
+  height: 104px;
+}
+/* OMP 像素 π 宠物容器 */
 .composer-crab {
   position: absolute;
   right: 18px;
