@@ -3,7 +3,7 @@
 // 这类整段重建对话，omp 删掉旧节点重画）就不再画：终端里重建也会清掉状态行（omp 18.12.5 实录 session-tree-compacted.jsonl）。
 // 状态行最多露两行：MCP 工具多时启动的 `xdev: xd://: mounted …` 会列出全部工具名，占满一屏（2026-11-06 仓库所有者），
 // 多出的收进和工具输出一样的"N more lines"。
-import { Fragment, memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
@@ -40,6 +40,7 @@ type MainSegment =
       durationMs: number;
       turnIndex: number;
       running: boolean;
+      settled: boolean;
       deliverables: readonly DeliverableItem[];
     };
 
@@ -76,7 +77,6 @@ function maxDescendantElapsedMs(surface: DocSurface, id: string): number {
   if (!node) return 0;
   if (node.k === "elapsed") {
     if (typeof node.p["stopped"] === "number" && node.p["stopped"] > 0) return node.p["stopped"];
-    if (typeof node.p["age"] === "number" && node.p["age"] > 0) return node.p["age"];
   }
   let max = 0;
   for (const cid of node.c) {
@@ -86,11 +86,12 @@ function maxDescendantElapsedMs(surface: DocSurface, id: string): number {
   return max;
 }
 
+// 只读取已结算的耗时（took / stopped / 已完成的 Thought for Ns），不读每 100ms 跳动的 age，
+// 避免运行中每秒触发 10 次 MainFlow 重渲染导致过程栏滚动条断触卡顿。
 function nodeDurationMs(surface: DocSurface, id: string): number {
   const node = surface.nodes.get(id);
   if (!node) return 0;
   if (typeof node.p["took"] === "number" && node.p["took"] > 0) return node.p["took"];
-  if (typeof node.p["age"] === "number" && node.p["age"] > 0) return node.p["age"];
   if (node.k === "section") {
     const headId = typeof node.p["head"] === "string" ? node.p["head"] : `${id}/head`;
     const headText = extractPlainText(surface, headId);
@@ -260,7 +261,7 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   let runDeliverables: DeliverableItem[] = [];
   let currentTurnIndex = -1;
 
-  const flush = (fallbackTurnMs = 0) => {
+  const flush = (fallbackTurnMs = 0, hasFollowingAnswer = false) => {
     if (runIds.length === 0) return;
     if (runThoughts + runTools >= 1) {
       out.push({
@@ -271,6 +272,7 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
         durationMs: runDurationMs > 0 ? runDurationMs : fallbackTurnMs,
         turnIndex: currentTurnIndex,
         running: runRunning,
+        settled: !runRunning && hasFollowingAnswer,
         deliverables: dedupeDeliverables(runDeliverables),
       });
     } else {
@@ -287,7 +289,7 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
     const node = surface.nodes.get(id);
     if (!node) continue;
     if (node.k === "card" && node.p["role"] === "omp.user") {
-      flush();
+      flush(0, true);
       currentTurnIndex += 1;
       out.push({
         kind: "item",
@@ -329,7 +331,7 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
           turnUsageMs = parseDurationTextMs(extractPlainText(surface, oid));
         }
       }
-      flush(turnUsageMs);
+      flush(turnUsageMs, true);
       out.push({
         kind: "item",
         id,
@@ -371,6 +373,7 @@ function sameSegment(a: MainSegment, b: MainSegment): boolean {
       a.tools === b.tools &&
       a.durationMs === b.durationMs &&
       a.running === b.running &&
+      a.settled === b.settled &&
       a.ids.length === b.ids.length &&
       a.ids.every((id, i) => id === b.ids[i]) &&
       sameDeliverables(a.deliverables, b.deliverables)
@@ -452,6 +455,7 @@ function ProcessGroup({
   durationMs,
   turnIndex,
   running,
+  settled,
   deliverables,
   after,
   ctx,
@@ -462,11 +466,24 @@ function ProcessGroup({
   durationMs: number;
   turnIndex: number;
   running: boolean;
+  settled: boolean;
   deliverables: readonly DeliverableItem[];
   after: ReadonlyMap<string, StatusNote[]>;
   ctx: TspContext;
 }) {
-  const [folded, setFolded] = useState(false);
+  // 运行中默认展开；当最终正式回答到达（settled 变为 true）时自动全部收起。用户手动点过则优先尊重用户当前阶段的选择。
+  const [userFolded, setUserFolded] = useState<boolean | null>(null);
+  const prevSettled = useRef(settled);
+  useEffect(() => {
+    if (prevSettled.current !== settled) {
+      prevSettled.current = settled;
+      setUserFolded(null);
+    }
+  }, [settled]);
+  const folded = userFolded ?? settled;
+
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
   const layout = useShellValue("processRows") ?? "column";
   const label = formatProcessSummary(thoughts, tools);
   const extraTurnMs = useSessionExtras(ctx.taskId, (extras) =>
@@ -476,6 +493,12 @@ function ProcessGroup({
   const durationText =
     effectiveMs >= 100 ? formatElapsed(effectiveMs, effectiveMs >= 1000 ? "seconds" : "short") : null;
 
+  useEffect(() => {
+    if (folded || !stickRef.current) return;
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [folded, ids.length]);
+
   return (
     <div className="tsp-process-group" data-layout={layout} data-testid="tsp-process-group">
       <button
@@ -483,7 +506,7 @@ function ProcessGroup({
         className="tsp-process-summary"
         data-running={running || undefined}
         aria-expanded={!folded}
-        onClick={() => setFolded((prev) => !prev)}
+        onClick={() => setUserFolded(!folded)}
         data-testid="tsp-process-summary"
       >
         <span className="tsp-process-summary-text">{label}</span>
@@ -501,7 +524,16 @@ function ProcessGroup({
           <ChevronDown />
         </span>
       </button>
-      <div className="tsp-process-group-body" data-layout={layout} hidden={folded}>
+      <div
+        ref={bodyRef}
+        className="tsp-process-group-body"
+        data-layout={layout}
+        hidden={folded}
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+        }}
+      >
         {ids.map((id) => (
           <Fragment key={id}>
             <TspNode id={id} ctx={ctx} />
@@ -543,6 +575,7 @@ export const MainFlow = memo(function MainFlow({ taskId, sf, ctx }: { taskId: Ta
           durationMs={seg.durationMs}
           turnIndex={seg.turnIndex}
           running={seg.running}
+          settled={seg.settled}
           deliverables={seg.deliverables}
           after={after}
           ctx={ctx}

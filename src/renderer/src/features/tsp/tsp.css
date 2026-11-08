@@ -3121,8 +3121,12 @@
   flex-direction: column;
   min-width: 0;
   max-width: 100%;
+  max-height: min(380px, 50vh);
   margin-top: var(--space-1-5);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
+.tsp-process-group-body:hover::-webkit-scrollbar-thumb,
 .tsp-section[data-role^="omp.thinking"] > .tsp-section-body:hover::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
 }
@@ -3159,7 +3163,8 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-raised);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .tsp-process-group-body[data-layout="column"] > * + * {
   border-top: 0.5px solid var(--border);
