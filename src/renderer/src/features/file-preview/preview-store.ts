@@ -1,24 +1,30 @@
 // 右侧文件面板的状态：同一时间只有一个面板（任务 id 或新任务草稿的键），两页——文件树 / 预览；关闭时把焦点还给打开它的元素。
 // 文件树的展开状态按键记在 tree-state.ts（面板关了、切走任务再回来仍在）。
-import type { TaskId, TerminalKey } from "../../../../shared/ipc.ts";
+import type { PreviewFile, TaskId, TerminalKey } from "../../../../shared/ipc.ts";
 import { createStore, useStoreValue } from "../../store/create-store.ts";
 import { selectedRoot } from "./roots-store.ts";
 
 export type PanelPage = "files" | "preview";
 
+export interface InlineArtifact {
+  id: string;
+  name: string;
+  ext: "html" | "svg" | "md";
+  content: string;
+}
+
 export interface PanelState {
   /** 面板属于谁：任务 id，或草稿的键（`new:<项目 id>`）。 */
   key: TerminalKey;
   page: PanelPage;
-  /** 预览页显示的文件：调用方给的路径（相对根目录，或落在根内的绝对路径）；还没打开过文件时为 null。 */
+  /** 预览页显示的文件：调用方给的路径（相对根目录，或落在根内的绝对路径，或 `@artifact/...` 内联交付物）；还没打开过文件时为 null。 */
   path: string | null;
   /** 预览的文件在哪个根里：缺省 = 任务目录，n = 第 n 个额外工作区目录（roots-store.ts）。 */
   root?: number | undefined;
 }
 
 const store = createStore<PanelState | null>(null);
-
-/** 打开面板前拿焦点的元素；Esc/× 关闭后还给它。 */
+const inlineArtifacts = new Map<string, PreviewFile>();
 let returnFocus: HTMLElement | null = null;
 
 function rememberFocus(): void {
@@ -27,7 +33,7 @@ function rememberFocus(): void {
   returnFocus = active instanceof HTMLElement && active !== document.body ? active : null;
 }
 
-/** 在预览页打开一个文件（工具卡上的文件链接）。 */
+/** 在预览页打开一个文件（工具卡上的文件链接或聊天交付卡片）。 */
 export function openFilePreview(taskId: TaskId, path: string): void {
   const current = store.get();
   if (current?.key === taskId && current.page === "preview" && current.path === path) return;
@@ -35,6 +41,32 @@ export function openFilePreview(taskId: TaskId, path: string): void {
   store.set({ key: taskId, page: "preview", path });
 }
 
+/** 在右侧预览面板直接打开聊天中的内联交付物（SVG / HTML / Markdown 代码块或交付卡片）。 */
+export function openInlineArtifact(key: TerminalKey, artifact: InlineArtifact): void {
+  const virtualPath = `@artifact/${artifact.id}/${artifact.name}`;
+  const size = new Blob([artifact.content]).size;
+  let preview: PreviewFile;
+  if (artifact.ext === "html") {
+    preview = { kind: "html", path: artifact.name, size, text: artifact.content, canOpen: false };
+  } else if (artifact.ext === "svg") {
+    preview = {
+      kind: "image",
+      path: artifact.name,
+      size,
+      dataUrl: `data:image/svg+xml;utf8,${encodeURIComponent(artifact.content)}`,
+      canOpen: false,
+    };
+  } else {
+    preview = { kind: "text", path: artifact.name, size, text: artifact.content, canOpen: false };
+  }
+  inlineArtifacts.set(virtualPath, preview);
+  rememberFocus();
+  store.set({ key, page: "preview", path: virtualPath });
+}
+
+export function getInlineArtifact(path: string): PreviewFile | null {
+  return inlineArtifacts.get(path) ?? null;
+}
 /** 顶栏按钮 / 快捷键：当前面板属于 key 就关掉，否则打开它的文件页。 */
 export function toggleFilesPanel(key: TerminalKey): void {
   if (store.get()?.key === key) {

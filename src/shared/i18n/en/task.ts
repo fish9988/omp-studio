@@ -5,6 +5,8 @@ export const task = {
   untitled: "New task",
   forkTitle: "{title} (fork)",
   rename: "Rename",
+  smartRename: "Smart rename",
+  smartRenamed: "Renamed to “{title}”",
   keepAlive: "Keep running",
   keepAliveOff: "Stop keeping running",
   renameLabel: "Task title",

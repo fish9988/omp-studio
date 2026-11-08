@@ -44,7 +44,9 @@ import { userMessageTexts } from "../../../../shared/tsp/user-messages.ts";
 import { GATE_ACTION_APPROVE, GATE_ACTION_DETAILS, TSP_APPROVAL_DIALOG_ID } from "../../../../shared/tsp/gate.ts";
 import { PathLabel } from "../empty/ProjectLabel.tsx";
 import { Button } from "../../ui/controls.tsx";
+import { useShellValue } from "../../app/shell-store.ts";
 import { ClawdMascot } from "./ClawdMascot.tsx";
+import { EnhancePromptButton } from "./EnhancePromptButton.tsx";
 
 export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDraft?: boolean }) {
   const t = useT();
@@ -230,6 +232,22 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
       }),
     [stop],
   );
+
+  // 首轮回答完成后自动智能命名（在设置里开启 autoSmartRename 时生效，每个任务最多自动触发一次）。
+  const autoSmartRename = useShellValue("autoSmartRename") ?? false;
+  const autoRenamedRef = useRef(false);
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    if (running) {
+      wasRunningRef.current = true;
+      return;
+    }
+    if (wasRunningRef.current && task?.status === "idle" && autoSmartRename && !autoRenamedRef.current) {
+      wasRunningRef.current = false;
+      autoRenamedRef.current = true;
+      void window.studio.smartRenameTask(taskId).catch(() => {});
+    }
+  }, [running, task?.status, autoSmartRename, taskId]);
 
   const attach = useAttach(taskId, fieldRef, task?.model?.acceptsImages);
 
@@ -456,6 +474,13 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
           <ShellTag taskId={taskId} />
           <span className="composer-spacer" />
           {tooOld && <span className="composer-note">{t("composer.versionTooOld")}</span>}
+          <EnhancePromptButton
+            draftKey={taskId}
+            text={draft.text}
+            taskId={taskId}
+            disabled={tooOld === true || worktreeGone}
+            onFocusField={() => fieldRef.current?.focus()}
+          />
           <ContextMeter task={task} />
           <SessionCost
             usage={task.sessionUsage}

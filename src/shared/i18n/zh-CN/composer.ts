@@ -79,4 +79,10 @@ export const composer = {
   "status.starting": "启动中…",
   "status.working": "运行中…",
   "status.needsYou": "等你确认",
+  enhance: "优化提示词",
+  enhancing: "优化中…",
+  enhanceTip: "使用 AI 辅助模型优化当前提示词",
+  enhanceDone: "提示词已优化",
+  enhanceUndo: "还原",
+  enhanceUndoTip: "还原为优化前的原始草稿",
 } satisfies Record<string, MessageEntry>;

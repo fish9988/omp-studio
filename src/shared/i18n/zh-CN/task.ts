@@ -4,6 +4,8 @@ export const task = {
   untitled: "新任务",
   forkTitle: "{title}（分叉）",
   rename: "重命名",
+  smartRename: "智能重命名",
+  smartRenamed: "已智能重命名为「{title}」",
   keepAlive: "保持运行",
   keepAliveOff: "取消保持运行",
   renameLabel: "任务标题",

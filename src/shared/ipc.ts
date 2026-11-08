@@ -1013,6 +1013,12 @@ export interface ShellState {
   mascot?: MascotCharacter;
   /** 对话过程行排版（单列卡片 column / 平铺极简 flat）。 */
   processRows?: ProcessRowsLayout;
+  /** AI 辅助功能（智能重命名与提示词优化）使用的模型（"smol" | "current" | "default" | "provider/modelId"）。 */
+  helperModel?: string;
+  /** AI 辅助功能的思考强度。 */
+  helperThinking?: HelperThinking;
+  /** 新会话首轮回答完成后是否自动执行智能重命名。 */
+  autoSmartRename?: boolean;
 }
 
 export type BrandStyle = "claude" | "deepseek" | "omp";
@@ -1023,6 +1029,9 @@ export const mascotCharacters: readonly MascotCharacter[] = ["clawd", "deepy", "
 
 export type ProcessRowsLayout = "column" | "flat";
 export const processRowsLayouts: readonly ProcessRowsLayout[] = ["column", "flat"];
+
+export type HelperThinking = "off" | "minimal" | "low" | "medium" | "high";
+export const helperThinkingLevels: readonly HelperThinking[] = ["off", "minimal", "low", "medium", "high"];
 
 export type HistoryOrder = "folder" | "time";
 export const historyOrders: readonly HistoryOrder[] = ["folder", "time"];
@@ -1150,6 +1159,10 @@ export interface StudioInvokeApi {
   /** 停止：撤回排队消息并中止当前一轮。 */
   stopTask(taskId: TaskId): Promise<RestoredQueue>;
   renameTask(taskId: TaskId, title: string): Promise<void>;
+  /** 用配置的辅助 LLM 根据对话内容生成精炼标题并重命名任务，返回新标题。 */
+  smartRenameTask(taskId: TaskId): Promise<string>;
+  /** 用配置的辅助 LLM 优化输入框里的草稿提示词，返回优化后的文本。 */
+  enhancePrompt(text: string, taskId: TaskId | null): Promise<string>;
   /** 保持运行：空闲多久都不关这个任务的 omp 进程，进程数到上限时也不先关它。存进任务记录，重启应用后照旧。 */
   setTaskKeepAlive(taskId: TaskId, on: boolean): Promise<void>;
   /** 关掉进程并从侧栏移除；会话文件不动。 */
@@ -1698,6 +1711,8 @@ export const invokeNames = {
   sendPrompt: true,
   stopTask: true,
   renameTask: true,
+  smartRenameTask: true,
+  enhancePrompt: true,
   setTaskKeepAlive: true,
   archiveTask: true,
   listTaskModels: true,

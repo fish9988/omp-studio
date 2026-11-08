@@ -3,6 +3,7 @@
 import {
   limits,
   type BrandStyle,
+  type HelperThinking,
   type HistoryOrder,
   type MascotCharacter,
   type ProcessRowsLayout,
@@ -29,6 +30,9 @@ const shellStore = createStore<ShellUiState>({
   brandStyle: "claude",
   mascot: "clawd",
   processRows: "column",
+  helperModel: "smol",
+  helperThinking: "off",
+  autoSmartRename: false,
   drawerOpen: false,
 });
 
@@ -101,6 +105,22 @@ export function setProcessRowsLayout(processRows: ProcessRowsLayout): void {
   update({ processRows });
   persist({ processRows });
 }
+
+export function setHelperModel(helperModel: string): void {
+  update({ helperModel });
+  persist({ helperModel });
+}
+
+export function setHelperThinking(helperThinking: HelperThinking): void {
+  update({ helperThinking });
+  persist({ helperThinking });
+}
+
+export function setAutoSmartRename(autoSmartRename: boolean): void {
+  update({ autoSmartRename });
+  persist({ autoSmartRename });
+}
+
 export function setDrawerOpen(drawerOpen: boolean): void {
   update({ drawerOpen });
 }

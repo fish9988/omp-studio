@@ -7,7 +7,7 @@ import { External, FileIcon, Folder } from "../../icons.tsx";
 import { Button, Checkbox, IconButton, Segmented } from "../../ui/controls.tsx";
 import { reportError } from "../../ui/errors.ts";
 import { baseName, extension, PreviewContent } from "./PreviewContent.tsx";
-
+import { getInlineArtifact } from "./preview-store.ts";
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "done"; file: PreviewFile };
 
 const zoomStep = 1.25;
@@ -47,6 +47,14 @@ export function PreviewPage({ target, path, hidden }: { target: ProjectFilesTarg
     setTextZoom((current) => Math.min(zoomRange[1], Math.max(zoomRange[0], current * factor)));
 
   useEffect(() => {
+    const inline = getInlineArtifact(path);
+    if (inline !== null) {
+      setLoad({ state: "done", file: inline });
+      setSource(false);
+      setScripts(inline.kind === "html");
+      setZoom("fit");
+      return;
+    }
     let cancelled = false;
     setLoad({ state: "loading" });
     setSource(false);
@@ -64,7 +72,6 @@ export function PreviewPage({ target, path, hidden }: { target: ProjectFilesTarg
       cancelled = true;
     };
   }, [target, path]);
-
   const file = load.state === "done" ? load.file : null;
   const name = baseName(file?.path ?? path);
   const ext = extension(file?.path ?? path);
@@ -190,12 +197,12 @@ export function PreviewPage({ target, path, hidden }: { target: ProjectFilesTarg
               </Button>
             </span>
           )}
-          {taskId !== null && file?.canOpen && (
+          {taskId !== null && !path.startsWith("@artifact/") && file?.canOpen && (
             <IconButton label={t("preview.open")} testId="file-preview-open" onClick={() => run("openTaskFile")}>
               <External size={14} />
             </IconButton>
           )}
-          {taskId !== null && file !== null && file.kind !== "missing" && (
+          {taskId !== null && !path.startsWith("@artifact/") && file !== null && file.kind !== "missing" && (
             <IconButton label={t("preview.reveal")} testId="file-preview-reveal" onClick={() => run("revealTaskFile")}>
               <Folder size={14} />
             </IconButton>

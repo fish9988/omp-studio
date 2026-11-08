@@ -8,8 +8,9 @@ import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
 import { useShellValue } from "../../app/shell-store.ts";
-import { ChevronDown } from "../../icons.tsx";
+import { ChevronDown, External, FileIcon } from "../../icons.tsx";
 import { currentLocale } from "../../store/settings-store.ts";
+import { openFilePreview, openInlineArtifact, type InlineArtifact } from "../file-preview/index.ts";
 import { Clamp } from "./Clamp.tsx";
 import type { TspContext } from "./node-props.ts";
 import { cleanGlyphs } from "./span-tokens.ts";
@@ -18,11 +19,28 @@ import { useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
 
 const STATUS_NOTE_LINES = 2;
 
+interface DeliverableItem {
+  key: string;
+  name: string;
+  badge: "SVG" | "HTML" | "MD" | "FILE";
+  subtitleZh: string;
+  subtitleEn: string;
+  filePath?: string;
+  artifact?: InlineArtifact;
+}
+
 type MainSegment =
-  { kind: "item"; id: string } | { kind: "process"; ids: readonly string[]; thoughts: number; tools: number };
+  | { kind: "item"; id: string; deliverables: readonly DeliverableItem[] }
+  | {
+      kind: "process";
+      ids: readonly string[];
+      thoughts: number;
+      tools: number;
+      deliverables: readonly DeliverableItem[];
+    };
 
 const EMPTY_SEGMENTS: readonly MainSegment[] = [];
-
+const EMPTY_DELIVERABLES: readonly DeliverableItem[] = [];
 function classifyProcessStep(surface: DocSurface, id: string): { thoughts: number; tools: number } | null {
   const node = surface.nodes.get(id);
   if (!node) return null;
@@ -47,6 +65,124 @@ function classifyProcessStep(surface: DocSurface, id: string): { thoughts: numbe
   return null;
 }
 
+function cleanDeliverablePath(raw: string): string {
+  return raw
+    .replace(/^file:\/\//i, "")
+    .replace(/:\d+(?:[-:]\d+)?$/, "")
+    .replace(/#L\d+.*$/i, "")
+    .trim();
+}
+
+function fileBadge(filePath: string): {
+  badge: DeliverableItem["badge"];
+  subtitleZh: string;
+  subtitleEn: string;
+} {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith(".svg")) {
+    return {
+      badge: "SVG",
+      subtitleZh: "SVG 矢量图形 · 点击在侧栏渲染预览",
+      subtitleEn: "SVG vector graphic · Click to preview",
+    };
+  }
+  if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+    return {
+      badge: "HTML",
+      subtitleZh: "HTML 网页文档 · 点击在侧栏渲染预览",
+      subtitleEn: "HTML document · Click to preview",
+    };
+  }
+  if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
+    return {
+      badge: "MD",
+      subtitleZh: "Markdown 文档 · 点击在侧栏渲染预览",
+      subtitleEn: "Markdown document · Click to preview",
+    };
+  }
+  return {
+    badge: "FILE",
+    subtitleZh: "已交付文件 · 点击在侧栏打开预览",
+    subtitleEn: "Deliverable file · Click to preview",
+  };
+}
+
+function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableItem[] {
+  const node = surface.nodes.get(id);
+  if (!node) return [];
+  const items: DeliverableItem[] = [];
+
+  // 1. write / edit 工具交付的文件（优先突出 .svg / .html / .md 及所有已写入完成的文件）
+  if (node.k === "tool" && node.p["status"] === "done") {
+    const toolName = node.p["name"];
+    if (toolName === "write" || toolName === "edit") {
+      const raw =
+        (typeof node.p["href"] === "string" && node.p["href"]) ||
+        (typeof node.p["target"] === "string" && node.p["target"]) ||
+        "";
+      const cleaned = cleanDeliverablePath(raw);
+      if (cleaned !== "") {
+        const parts = cleaned.split(/[\\/]/).filter(Boolean);
+        const name = parts[parts.length - 1] ?? cleaned;
+        const meta = fileBadge(cleaned);
+        items.push({
+          key: `file:${cleaned}`,
+          name,
+          badge: meta.badge,
+          subtitleZh: meta.subtitleZh,
+          subtitleEn: meta.subtitleEn,
+          filePath: cleaned,
+        });
+      }
+    }
+  }
+
+  // 2. 助手回答里的 ```html / ```svg / ```markdown 代码块交付物
+  if (node.k === "col" && node.p["role"] === "omp.assistant") {
+    let blockIdx = 0;
+    for (const cid of node.c) {
+      const child = surface.nodes.get(cid);
+      if (child?.k === "md" && child.p["role"] === undefined && typeof child.p["text"] === "string") {
+        const text = child.p["text"];
+        const fenceRegex = /```(html|htm|svg|markdown|md)\b[^\r\n]*\r?\n([\s\S]*?)```/gi;
+        let match: RegExpExecArray | null;
+        while ((match = fenceRegex.exec(text)) !== null) {
+          const rawLang = (match[1] ?? "").toLowerCase();
+          const body = (match[2] ?? "").trim();
+          if (body.length < 16) continue;
+          blockIdx += 1;
+          const ext: "html" | "svg" | "md" =
+            rawLang === "html" || rawLang === "htm" ? "html" : rawLang === "svg" ? "svg" : "md";
+          const name =
+            ext === "html"
+              ? `index-${blockIdx}.html`
+              : ext === "svg"
+                ? `diagram-${blockIdx}.svg`
+                : `document-${blockIdx}.md`;
+          const meta = fileBadge(name);
+          const artifactId = `${id}-${blockIdx}`;
+          items.push({
+            key: `art:${artifactId}`,
+            name,
+            badge: meta.badge,
+            subtitleZh: meta.subtitleZh,
+            subtitleEn: meta.subtitleEn,
+            artifact: { id: artifactId, name, ext, content: body },
+          });
+        }
+      }
+    }
+  }
+  return items;
+}
+
+function dedupeDeliverables(list: readonly DeliverableItem[]): readonly DeliverableItem[] {
+  if (list.length === 0) return EMPTY_DELIVERABLES;
+  const map = new Map<string, DeliverableItem>();
+  for (const item of list) map.set(item.key, item);
+  return [...map.values()];
+}
+
 function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   const main = surface.nodes.get("main");
   if (!main) return EMPTY_SEGMENTS;
@@ -54,17 +190,25 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   let runIds: string[] = [];
   let runThoughts = 0;
   let runTools = 0;
+  let runDeliverables: DeliverableItem[] = [];
 
   const flush = () => {
     if (runIds.length === 0) return;
     if (runThoughts + runTools >= 1) {
-      out.push({ kind: "process", ids: runIds, thoughts: runThoughts, tools: runTools });
+      out.push({
+        kind: "process",
+        ids: runIds,
+        thoughts: runThoughts,
+        tools: runTools,
+        deliverables: dedupeDeliverables(runDeliverables),
+      });
     } else {
-      for (const id of runIds) out.push({ kind: "item", id });
+      for (const id of runIds) out.push({ kind: "item", id, deliverables: EMPTY_DELIVERABLES });
     }
     runIds = [];
     runThoughts = 0;
     runTools = 0;
+    runDeliverables = [];
   };
 
   for (const id of main.c) {
@@ -73,9 +217,14 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
       runIds.push(id);
       runThoughts += step.thoughts;
       runTools += step.tools;
+      runDeliverables.push(...extractNodeDeliverables(surface, id));
     } else {
       flush();
-      out.push({ kind: "item", id });
+      out.push({
+        kind: "item",
+        id,
+        deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+      });
     }
   }
   flush();
@@ -90,15 +239,22 @@ function deriveSegmentsBySurface(doc: TspDocument): ReadonlyMap<string, readonly
   return map;
 }
 
+function sameDeliverables(a: readonly DeliverableItem[], b: readonly DeliverableItem[]): boolean {
+  return a.length === b.length && a.every((item, i) => item.key === b[i]?.key);
+}
+
 function sameSegment(a: MainSegment, b: MainSegment): boolean {
   if (a.kind !== b.kind) return false;
-  if (a.kind === "item" && b.kind === "item") return a.id === b.id;
+  if (a.kind === "item" && b.kind === "item") {
+    return a.id === b.id && sameDeliverables(a.deliverables, b.deliverables);
+  }
   if (a.kind === "process" && b.kind === "process") {
     return (
       a.thoughts === b.thoughts &&
       a.tools === b.tools &&
       a.ids.length === b.ids.length &&
-      a.ids.every((id, i) => id === b.ids[i])
+      a.ids.every((id, i) => id === b.ids[i]) &&
+      sameDeliverables(a.deliverables, b.deliverables)
     );
   }
   return false;
@@ -137,16 +293,51 @@ function StatusLine({ note }: { note: StatusNote }) {
   );
 }
 
+function DeliverableShelf({ taskId, items }: { taskId: TaskId; items: readonly DeliverableItem[] }) {
+  if (items.length === 0) return null;
+  const zh = currentLocale() === "zh-CN";
+  return (
+    <div className="tsp-deliverables" data-testid="tsp-deliverables">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className="tsp-deliverable-card"
+          data-badge={item.badge}
+          data-testid="tsp-deliverable-card"
+          onClick={() => {
+            if (item.filePath !== undefined) openFilePreview(taskId, item.filePath);
+            else if (item.artifact !== undefined) openInlineArtifact(taskId, item.artifact);
+          }}
+        >
+          <span className="tsp-deliverable-badge" data-badge={item.badge}>
+            {item.badge === "FILE" ? <FileIcon size={14} /> : item.badge}
+          </span>
+          <span className="tsp-deliverable-info">
+            <span className="tsp-deliverable-name">{item.name}</span>
+            <span className="tsp-deliverable-sub">{zh ? item.subtitleZh : item.subtitleEn}</span>
+          </span>
+          <span className="tsp-deliverable-open" aria-hidden="true">
+            <External size={14} />
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ProcessGroup({
   ids,
   thoughts,
   tools,
+  deliverables,
   after,
   ctx,
 }: {
   ids: readonly string[];
   thoughts: number;
   tools: number;
+  deliverables: readonly DeliverableItem[];
   after: ReadonlyMap<string, StatusNote[]>;
   ctx: TspContext;
 }) {
@@ -178,6 +369,7 @@ function ProcessGroup({
           </Fragment>
         ))}
       </div>
+      <DeliverableShelf taskId={ctx.taskId} items={deliverables} />
     </div>
   );
 }
@@ -206,12 +398,16 @@ export const MainFlow = memo(function MainFlow({ taskId, sf, ctx }: { taskId: Ta
           ids={seg.ids}
           thoughts={seg.thoughts}
           tools={seg.tools}
+          deliverables={seg.deliverables}
           after={after}
           ctx={ctx}
         />,
       );
     } else {
       out.push(<TspNode key={seg.id} id={seg.id} ctx={ctx} />);
+      if (seg.deliverables.length > 0) {
+        out.push(<DeliverableShelf key={`dl-${seg.id}`} taskId={taskId} items={seg.deliverables} />);
+      }
       (after.get(seg.id) ?? []).forEach((note, i) => out.push(<StatusLine key={`s-${seg.id}-${i}`} note={note} />));
     }
   }

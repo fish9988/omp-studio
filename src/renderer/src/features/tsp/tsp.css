@@ -3045,6 +3045,93 @@
   background: transparent;
   box-shadow: none;
 }
+/* ───────── 聊天交付文件卡片（SVG / HTML / Markdown / 写入文件一键在右侧预览面板打开并渲染） ───────── */
+.tsp-deliverables {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.tsp-deliverable-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.tsp-deliverable-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-1);
+}
+.tsp-deliverable-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-strong);
+}
+.tsp-deliverable-badge[data-badge="SVG"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.tsp-deliverable-badge[data-badge="HTML"] {
+  background: color-mix(in srgb, var(--syn-func) 14%, transparent);
+  color: var(--syn-func);
+}
+.tsp-deliverable-badge[data-badge="MD"] {
+  background: color-mix(in srgb, var(--diff-add-fg) 14%, transparent);
+  color: var(--diff-add-fg);
+}
+.tsp-deliverable-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tsp-deliverable-name {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsp-deliverable-sub {
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsp-deliverable-open {
+  flex: none;
+  color: var(--text-3);
+  display: inline-flex;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tsp-deliverable-card:hover .tsp-deliverable-open {
+  color: var(--accent);
+}
 /* /jobs 弹窗（omp.overlay.jobs）照 studio 自己的对话框排（2026-10-25）：标题栏、左边作业列表（侧栏底色、整列高）、
    右边详情自己滚动、底栏（摘要 + Close）钉在最下面；卡片高度固定，切作业时不跳。详情里命令 / 事实 / 进度 / 输出
    各成一段，段间 --space-4；进度小部件放在浅底块里，输出放在下沉底的终端块里。 */

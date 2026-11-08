@@ -27,6 +27,25 @@ async function copySession(t: TFunction, taskId: TaskId, pick: "sessionId" | "se
   });
 }
 
+function SparkleMenuIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 1.5l1.6 4.1 4.1 1.6-4.1 1.6L8 12.9 6.4 8.8 2.3 7.2l4.1-1.6L8 1.5z" />
+      <path d="M13 11.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6.6-1.4z" />
+    </svg>
+  );
+}
+
 export function buildTaskMenu(options: {
   t: TFunction;
   taskId: TaskId;
@@ -37,6 +56,16 @@ export function buildTaskMenu(options: {
   const { t, taskId } = options;
   return [
     { id: "rename", label: t("task.rename"), icon: <Pencil />, shortcut: "F2", onSelect: options.onRename },
+    {
+      id: "smartRename",
+      label: t("task.smartRename"),
+      icon: <SparkleMenuIcon />,
+      onSelect: () =>
+        void attempt(t, async () => {
+          const title = await window.studio.smartRenameTask(taskId);
+          pushToast({ level: "info", message: t("task.smartRenamed", { title }) });
+        }),
+    },
     {
       id: "keepAlive",
       label: t(options.keepAlive ? "task.keepAliveOff" : "task.keepAlive"),

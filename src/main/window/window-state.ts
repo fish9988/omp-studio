@@ -4,13 +4,14 @@ import { app, screen, type BrowserWindow, type Rectangle } from "electron";
 import path from "node:path";
 import {
   brandStyles,
+  helperThinkingLevels,
   historyOrders,
   limits,
   mascotCharacters,
   processRowsLayouts,
   type ShellState,
 } from "../../shared/ipc.ts";
-import { parseBoolean, parseInteger, parseOneOf, parseRecord } from "../ipc/validate.ts";
+import { parseBoolean, parseInteger, parseOneOf, parseRecord, parseString } from "../ipc/validate.ts";
 import { readJsonFile, writeJsonFileAtomic } from "../settings/json-file.ts";
 
 export const sidebarWidthRange = [200, 360] as const;
@@ -25,8 +26,10 @@ const defaultShellState: ShellState = {
   brandStyle: "claude",
   mascot: "clawd",
   processRows: "column",
+  helperModel: "smol",
+  helperThinking: "off",
+  autoSmartRename: false,
 };
-
 interface WindowBounds {
   x: number;
   y: number;
@@ -133,6 +136,27 @@ function load(): PersistedState {
   try {
     if (raw["processRows"] !== undefined) {
       shell.processRows = parseOneOf(raw["processRows"], "processRows", processRowsLayouts);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["helperModel"] !== undefined) {
+      shell.helperModel = parseString(raw["helperModel"], "helperModel", 200);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["helperThinking"] !== undefined) {
+      shell.helperThinking = parseOneOf(raw["helperThinking"], "helperThinking", helperThinkingLevels);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["autoSmartRename"] !== undefined) {
+      shell.autoSmartRename = parseBoolean(raw["autoSmartRename"], "autoSmartRename");
     }
   } catch {
     // 保留默认值。

@@ -4,12 +4,23 @@
 // 改了就写全局（和模型选择对话框里给角色"应用"一样）。候选按角色能用的模型类别筛（role-options.ts）。
 // 自定义角色（omp：modelRoles 里内置角色以外的名字，只用对话模型）可以添加、删除；omp 只认有模型的角色，所以添加时名字和模型一起填。
 import { Fragment, useEffect, useId, useState } from "react";
-import type { ModelKey } from "../../../../shared/ipc.ts";
+import type { HelperThinking, ModelKey } from "../../../../shared/ipc.ts";
 import type { ThinkingLevel } from "../../../../shared/omp-wire/rpc-wire.generated.ts";
 import { joinRoleValue, splitRoleValue } from "../../../../shared/ui/role-value.ts";
+import { setAutoSmartRename, setHelperModel, setHelperThinking, useShellValue } from "../../app/shell-store.ts";
 import { useT } from "../../i18n/use-t.ts";
 import { Close, Plus } from "../../icons.tsx";
-import { Button, FormField, IconButton, Notice, Row, TextField, type Option } from "../../ui/controls.tsx";
+import {
+  Button,
+  FormField,
+  IconButton,
+  Notice,
+  Row,
+  Segmented,
+  Switch,
+  TextField,
+  type Option,
+} from "../../ui/controls.tsx";
 import { Dialog } from "../../ui/Dialog.tsx";
 import { describeError, reportError } from "../../ui/errors.ts";
 import { InfoTip } from "../../ui/InfoTip.tsx";
@@ -415,8 +426,25 @@ export function ModelsSection() {
   // 比如 auto：omp 支持但这里没有对应文案，原样显示。
   if (typeof thinking === "string" && !thinkingOptions.some((option) => option.value === thinking))
     thinkingOptions.push({ value: thinking, label: thinking });
+  const helperModel = useShellValue("helperModel") ?? "smol";
+  const helperThinking = useShellValue("helperThinking") ?? "off";
+  const autoSmartRename = useShellValue("autoSmartRename") ?? false;
+  const chatModelCandidates = candidatesOfKinds(["chat"], sources);
+  const helperModelOptions: SelectOption<string>[] = [
+    { value: "smol", label: t("settings.helperModel.smol") },
+    { value: "current", label: t("settings.helperModel.current") },
+    { value: "default", label: t("settings.helperModel.default") },
+    ...chatModelCandidates.map((c) => ({ value: c.value, label: `${c.label} (${c.value})` })),
+  ];
+  if (helperModel !== "" && !helperModelOptions.some((opt) => opt.value === helperModel)) {
+    helperModelOptions.push({ value: helperModel, label: helperModel });
+  }
+  const helperThinkingOptions = (["off", "minimal", "low", "medium", "high"] as const).map((level) => ({
+    value: level,
+    label: level === "off" ? t("thinking.off") : t(`thinking.${level}`),
+  }));
 
-  // 默认思考强度是一项普通设置，不占角色表的一格（2026-10-29 审计：它的长标签把左半边的角色名列撑宽，左右两半的下拉对不齐）。
+  // 默认思考强度与 AI 辅助（智能重命名 / 提示词优化）配置
   const thinkingRow = (
     <div className="st-cells">
       <Row label={t("settings.defaultThinking")}>
@@ -431,6 +459,40 @@ export function ModelsSection() {
               saveOmpDefaultThinking(value as ThinkingLevel).catch((error: unknown) => reportError(t, error))
             }
             testId="setting-default-thinking"
+          />
+        )}
+      </Row>
+      <Row label={t("settings.helperModel")} info={t("settings.helperModel.desc")}>
+        {(labelId) => (
+          <Select
+            size="sm"
+            value={helperModel}
+            options={helperModelOptions}
+            labelledBy={labelId}
+            onChange={(next) => setHelperModel(next)}
+            testId="setting-helper-model"
+          />
+        )}
+      </Row>
+      <Row label={t("settings.helperThinking")}>
+        {(labelId) => (
+          <Segmented<HelperThinking>
+            size="sm"
+            value={helperThinking}
+            options={helperThinkingOptions}
+            labelledBy={labelId}
+            onChange={(next) => setHelperThinking(next)}
+            testId="setting-helper-thinking"
+          />
+        )}
+      </Row>
+      <Row label={t("settings.autoSmartRename")} info={t("settings.autoSmartRename.desc")}>
+        {(labelId) => (
+          <Switch
+            checked={autoSmartRename}
+            labelledBy={labelId}
+            onChange={(next) => setAutoSmartRename(next)}
+            testId="setting-auto-smart-rename"
           />
         )}
       </Row>

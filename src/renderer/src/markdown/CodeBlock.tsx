@@ -1,15 +1,17 @@
 // 代码块（spec 4.10）：头部语言名 + 复制；围栏闭合后才高亮（只改颜色）；全文显示（omp 的 md 节点不限行数）。
 // ```svg 和 ```mermaid 围栏闭合后画成图，头部多一个切回源码的按钮。
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { draftKey } from "../../../shared/ipc.ts";
+import { openInlineArtifact } from "../features/file-preview/index.ts";
 import { useT } from "../i18n/use-t.ts";
-import { Check, Code, CopyIcon } from "../icons.tsx";
+import { Check, Code, CopyIcon, External } from "../icons.tsx";
+import { useSelectedTaskId } from "../store/index.ts";
 import { onThemeChange } from "../ui/theme-change.ts";
 import { useHighlighted } from "./highlight.ts";
 import { resolveLanguage } from "./highlight-languages.ts";
 import { tokenProps } from "./highlight-tokens.ts";
 import { useMermaid } from "./mermaid.ts";
 import { FIGURE_TOKENS, prepareMermaidSvg, prepareSvg, svgDataUrl } from "./svg-figure.ts";
-
 function lineClass(line: string, isDiff: boolean): string {
   if (!isDiff) return "md-line";
   if (line.startsWith("+") && !line.startsWith("+++")) return "md-line md-diff-add";
@@ -25,11 +27,20 @@ interface CodeBlockProps {
 
 export const CodeBlock = memo(function CodeBlock({ code, lang, closed }: CodeBlockProps) {
   const t = useT();
+  const taskId = useSelectedTaskId();
   const [copied, setCopied] = useState(false);
   // ```svg 围栏闭合后画成图（svg-figure.ts）；```mermaid 先在 worker 里画成 SVG（mermaid.ts），画好之前照常显示源码。
   // 头部的 <> 切回源码，画不出来时也退回源码。
   const kind = closed ? lang.toLowerCase() : "";
   const figure = kind === "svg" || kind === "mermaid";
+  const previewableExt: "html" | "svg" | "md" | null =
+    kind === "html" || kind === "htm"
+      ? "html"
+      : kind === "svg" || kind === "mermaid"
+        ? "svg"
+        : kind === "md" || kind === "markdown"
+          ? "md"
+          : null;
   const mermaid = useMermaid(kind === "mermaid" ? code : null);
   const [showSource, setShowSource] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -66,6 +77,29 @@ export const CodeBlock = memo(function CodeBlock({ code, lang, closed }: CodeBlo
       <div className="md-codehead">
         <span className="md-codelang">{lang === "" ? "text" : lang}</span>
         <span className="md-codeactions">
+          {previewableExt !== null && (kind !== "mermaid" || mermaidSvg !== null) && (
+            <button
+              type="button"
+              className="md-codebtn"
+              aria-label={t("code.previewSidebar")}
+              title={t("code.previewSidebar")}
+              data-testid="codeblock-preview-sidebar"
+              onClick={() => {
+                const panelKey = taskId ?? draftKey(null);
+                const content = kind === "mermaid" ? (mermaidSvg ?? code) : code;
+                const name =
+                  previewableExt === "html" ? "preview.html" : previewableExt === "svg" ? "figure.svg" : "document.md";
+                openInlineArtifact(panelKey, {
+                  id: `cb-${code.length}`,
+                  name,
+                  ext: previewableExt,
+                  content,
+                });
+              }}
+            >
+              <External size={14} />
+            </button>
+          )}
           {ready && (
             <button
               type="button"

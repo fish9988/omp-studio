@@ -12,6 +12,7 @@ import { canOpenDirectly, resolveInsideReal } from "./task-file-path.ts";
 import { parseRootIndex, rootDir } from "../files/task-roots.ts";
 import { terminalLogin } from "../login/terminal-login-instance.ts";
 import { getTaskPool } from "../tasks/runtime.ts";
+import { enhancePrompt, smartRenameTask } from "../tasks/ai-helper.ts";
 import { tspFeed } from "../tasks/tsp-feed-instance.ts";
 import { getMainWindow } from "../window/main-window.ts";
 import {
@@ -52,6 +53,8 @@ export const taskHandlers: HandlerGroup<
   | "sendPrompt"
   | "stopTask"
   | "renameTask"
+  | "smartRenameTask"
+  | "enhancePrompt"
   | "setTaskKeepAlive"
   | "archiveTask"
   | "listTaskModels"
@@ -240,7 +243,9 @@ export const taskHandlers: HandlerGroup<
   stopTask: async (taskId) => (await getTaskPool()).stopTask(parseTaskId(taskId)),
 
   renameTask: async (taskId, title) => (await getTaskPool()).renameTask(parseTaskId(taskId), parseTitle(title)),
-
+  smartRenameTask: async (taskId) => smartRenameTask(parseTaskId(taskId)),
+  enhancePrompt: async (text, taskId) =>
+    enhancePrompt(parseString(text, "text", 100_000), taskId === null ? null : parseTaskId(taskId)),
   setTaskKeepAlive: async (taskId, on) =>
     (await getTaskPool()).setTaskKeepAlive(parseTaskId(taskId), parseBoolean(on, "on")),
 

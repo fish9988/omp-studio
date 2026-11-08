@@ -83,4 +83,10 @@ export const composer = {
   "status.starting": "Starting…",
   "status.working": "Working…",
   "status.needsYou": "Waiting for you",
+  enhance: "Enhance",
+  enhancing: "Enhancing…",
+  enhanceTip: "Optimize the current prompt using the helper LLM",
+  enhanceDone: "Prompt enhanced",
+  enhanceUndo: "Undo",
+  enhanceUndoTip: "Restore the original prompt before enhancement",
 } satisfies Record<keyof typeof zhCN, MessageEntry>;

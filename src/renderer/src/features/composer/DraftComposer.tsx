@@ -34,8 +34,8 @@ import { useFileMenu } from "./use-file-menu.ts";
 import { useNewTaskDefault } from "./use-new-task-default.ts";
 import { clearFirstPrompt, setFirstPrompt } from "../tsp/first-prompt-store.ts";
 import { ClawdMascot } from "./ClawdMascot.tsx";
+import { EnhancePromptButton } from "./EnhancePromptButton.tsx";
 import "./composer.css";
-
 /** projectTools：工具行里紧跟审批胶囊的部分（空状态放项目标签）。 */
 export function DraftComposer({ projectId, projectTools }: { projectId: ProjectId | null; projectTools?: ReactNode }) {
   const t = useT();
@@ -241,6 +241,13 @@ export function DraftComposer({ projectId, projectTools }: { projectId: ProjectI
           <ApprovalChip projectId={projectId} forgetTaskId={null} />
           {projectTools}
           <span className="composer-spacer" />
+          <EnhancePromptButton
+            draftKey={key}
+            text={draft.text}
+            taskId={null}
+            disabled={sending}
+            onFocusField={() => fieldRef.current?.focus()}
+          />
           <DraftContextMeter model={model ?? null} projectId={projectId} />
           <SessionCost usage={null} provider={model?.key.provider ?? null} />
           <SendStop

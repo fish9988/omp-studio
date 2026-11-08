@@ -3,6 +3,7 @@ import { app, shell } from "electron";
 import {
   brandStyles,
   editCommands,
+  helperThinkingLevels,
   historyOrders,
   limits,
   mascotCharacters,
@@ -35,6 +36,7 @@ import {
   parseFontSize,
   parseOneOf,
   parseRecord,
+  parseString,
   parseThemePreference,
 } from "./validate.ts";
 
@@ -121,6 +123,15 @@ export const appHandlers: HandlerGroup<
       }),
       ...(record["processRows"] !== undefined && {
         processRows: parseOneOf(record["processRows"], "processRows", processRowsLayouts),
+      }),
+      ...(record["helperModel"] !== undefined && {
+        helperModel: parseString(record["helperModel"], "helperModel", 200),
+      }),
+      ...(record["helperThinking"] !== undefined && {
+        helperThinking: parseOneOf(record["helperThinking"], "helperThinking", helperThinkingLevels),
+      }),
+      ...(record["autoSmartRename"] !== undefined && {
+        autoSmartRename: parseBoolean(record["autoSmartRename"], "autoSmartRename"),
       }),
     });
   },

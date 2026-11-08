@@ -191,6 +191,38 @@
   line-height: var(--lh-prose);
   overflow-y: auto;
 }
+.enhance-prompt-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  flex: none;
+}
+.enhance-prompt-btn {
+  color: var(--text-2);
+  gap: var(--space-1);
+}
+.enhance-prompt-btn:not(:disabled):hover {
+  color: var(--accent);
+}
+.enhance-prompt-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.enhance-undo-btn {
+  color: var(--accent);
+  font-size: var(--fs-xs);
+}
+@keyframes enhance-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.enhance-sparkle.is-spinning {
+  animation: enhance-spin 900ms linear infinite;
+}
 .composer-field::placeholder {
   color: var(--text-3);
 }

@@ -1,3 +1,10 @@
 export { FileLink } from "./FileLink.tsx";
 export { FilesToggle } from "./FilesToggle.tsx";
-export { openFilePreview, toggleFilesPanel, usePreviewPanel } from "./preview-store.ts";
+export {
+  getInlineArtifact,
+  openFilePreview,
+  openInlineArtifact,
+  toggleFilesPanel,
+  usePreviewPanel,
+  type InlineArtifact,
+} from "./preview-store.ts";
