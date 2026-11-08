@@ -16,7 +16,8 @@ import { killProcessTree } from "../platform/process-tree.ts";
 import { registerShutdownHook } from "../window/shutdown.ts";
 import { getShellState } from "../window/window-state.ts";
 import { setActiveTerminalManager } from "./active.ts";
-import { buildTerminalEnv, resolveShell } from "./shell.ts";
+import { buildTerminalEnv, resolveHostShellPath, resolveShell } from "./shell.ts";
+export { resolveHostShellPath };
 import { TerminalManager } from "./terminal-manager.ts";
 /** 在 PATH 里找可执行文件（不看当前目录：Windows 的 CreateProcess 会先找当前目录，不能让项目里的 pwsh.exe 抢先）。 */
 function which(command: string): string | null {

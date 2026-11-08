@@ -27,6 +27,7 @@ import {
 } from "../window/main-window.ts";
 import { chatsDir } from "../tasks/chats-dir.ts";
 import { studioReleaseNotes, whatsNewForThisLaunch } from "../whats-new.ts";
+import { syncPreferredShellToOmp } from "./omp-handlers.ts";
 import {
   parseBackdropMode,
   parseBackdropStrength,
@@ -138,6 +139,10 @@ export const appHandlers: HandlerGroup<
         preferredShell: parseOneOf(record["preferredShell"], "preferredShell", preferredShells),
       }),
     });
+    if (record["preferredShell"] !== undefined) {
+      const pref = parseOneOf(record["preferredShell"], "preferredShell", preferredShells);
+      void syncPreferredShellToOmp(pref);
+    }
   },
   setTitleBarDimmed: async (dimmed, fade) =>
     setTitleBarDimmed(parseBoolean(dimmed, "dimmed"), parseOneOf(fade, "fade", titleBarFades)),

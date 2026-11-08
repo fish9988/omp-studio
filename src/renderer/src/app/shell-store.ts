@@ -122,22 +122,9 @@ export function setAutoSmartRename(autoSmartRename: boolean): void {
   persist({ autoSmartRename });
 }
 
-const OMP_SHELL_PATH_BY_PREF: Record<Exclude<PreferredShell, "auto">, string> = {
-  pwsh: "pwsh.exe",
-  powershell: "powershell.exe",
-  cmd: "cmd.exe",
-  "git-bash": "C:\\Program Files\\Git\\bin\\bash.exe",
-};
-
 export function setPreferredShell(preferredShell: PreferredShell): void {
   update({ preferredShell });
   persist({ preferredShell });
-  if (preferredShell === "auto") {
-    void window.studio.resetOmpConfig("shellPath").catch(() => {});
-  } else {
-    const exe = OMP_SHELL_PATH_BY_PREF[preferredShell];
-    void window.studio.setOmpConfig("shellPath", JSON.stringify(exe)).catch(() => {});
-  }
 }
 export function setDrawerOpen(drawerOpen: boolean): void {
   update({ drawerOpen });

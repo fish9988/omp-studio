@@ -1,4 +1,5 @@
 // 终端起哪个 shell、带什么环境变量。纯函数，平台和环境由调用方传入，单元测试直接用。
+import { accessSync, constants } from "node:fs";
 import path from "node:path";
 import type { PreferredShell } from "../../shared/ipc.ts";
 import { prependToPath } from "../omp/launch-args.ts";
@@ -60,4 +61,51 @@ export function buildTerminalEnv(base: NodeJS.ProcessEnv, managedOmpBin: string 
   env["TERM"] = "xterm-256color";
   env["COLORTERM"] = "truecolor";
   return env;
+}
+
+function hostWhich(command: string): string | null {
+  const dirs = (process.env["PATH"] ?? process.env["Path"] ?? "").split(path.delimiter).filter(Boolean);
+  for (const dir of dirs) {
+    const candidate = path.join(dir, command);
+    try {
+      accessSync(candidate, constants.F_OK);
+      return candidate;
+    } catch {
+      // 继续找下一个目录
+    }
+  }
+  return null;
+}
+
+function fileExists(candidate: string): boolean {
+  if (!path.isAbsolute(candidate)) return false;
+  try {
+    accessSync(candidate, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 解析用户所选 Shell 在本机上的真实绝对路径（供 omp 的 `shellPath` 使用）。
+ * `omp` 内部用 `fs.existsSync(shellPath)` 校验，如果写入裸文件名（如 `pwsh.exe`）或不存在的路径会直接抛错退出，
+ * 因此这里只返回经过 `accessSync` 验证存在的绝对路径；`"auto"` 或找不到时返回 `null`（重置 `shellPath`）。
+ */
+export function resolveHostShellPath(preferred: PreferredShell): string | null {
+  if (preferred === "auto") return null;
+  if (process.platform === "win32" && preferred === "git-bash") {
+    const localAppData = process.env["LOCALAPPDATA"] ?? "";
+    const candidates = [
+      "C:\\Program Files\\Git\\bin\\bash.exe",
+      "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+      "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+      ...(localAppData ? [path.join(localAppData, "Programs", "Git", "bin", "bash.exe")] : []),
+    ];
+    for (const c of candidates) {
+      if (fileExists(c)) return c;
+    }
+  }
+  const choice = resolveShell({ platform: process.platform, env: process.env, which: hostWhich }, preferred);
+  return fileExists(choice.file) ? choice.file : null;
 }

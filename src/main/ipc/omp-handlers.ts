@@ -1,11 +1,12 @@
 // omp 管理的 IPC：状态、接管询问、下载安装、加 PATH、升级，omp 的全部设置，以及几项和 omp 管理一起交付的应用设置。
 // 逻辑在 src/main/omp-manager/、src/main/omp-config/；这里只校验参数后转调。
 import { app } from "electron";
+import { accessSync, constants, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { resolveAgentDir } from "../history/session-index.ts";
 import { log } from "../log/log.ts";
 import { emitEvent } from "./events.ts";
-import type { HandlerGroup, ModelDefaults, OmpConfigSnapshot, ProjectId } from "../../shared/ipc.ts";
+import type { HandlerGroup, ModelDefaults, OmpConfigSnapshot, PreferredShell, ProjectId } from "../../shared/ipc.ts";
 import { toApprovalMode } from "../../shared/approval-mode.ts";
 import { goalContinuationKey } from "../../shared/ui/goal-continuation.ts";
 import { applyGoalContinuationDefault, isGoalContinuationExplicit } from "../omp-config/goal-default.ts";
@@ -32,8 +33,10 @@ import { startupCache } from "../service/startup-cache-instance.ts";
 import { updateSettings } from "../settings/settings-store.ts";
 import { getTaskPool } from "../tasks/runtime.ts";
 import { pathKey } from "../tasks/task-registry.ts";
+import { resolveHostShellPath } from "../terminal/runtime.ts";
 import { readInDbWorker } from "../usage/db-worker-client.ts";
 import { registerShutdownHook } from "../window/shutdown.ts";
+import { getShellState } from "../window/window-state.ts";
 import {
   IpcValidationError,
   parseBoolean,
@@ -95,8 +98,74 @@ async function applySetupWizardDefaultOnStartup(): Promise<void> {
  * 启动默认的入口：先 goal 再引导，依次执行（两个 `omp config set` 并发会互相覆盖 config.yml）。
  * promise 登记到 startup-defaults，TSP 任务启动前等它（omp-config/startup-defaults.ts）。
  */
+/**
+ * 自愈清理：如果 `~/.omp/agent/config.yml` 里写入了相对路径（如 `pwsh.exe`）或不存在的 `shellPath`，
+ * `omp` 启动时会在 `jGt(shellPath)` 抛 `Custom shell path not found` 并以状态码 1 退出，导致所有会话无法握手。
+ * 在任何 `omp` 进程启动前先直接检查 `config.yml`，把无效的 `shellPath` 行剔除。
+ */
+export function sanitizeBrokenOmpShellPath(agentDir: string = resolveAgentDir()): void {
+  const cfgPath = path.join(agentDir, "config.yml");
+  try {
+    const raw = readFileSync(cfgPath, "utf8");
+    const lines = raw.split(/\r?\n/);
+    let changed = false;
+    const kept = lines.filter((line) => {
+      const match = /^shellPath\s*:\s*(.+)$/.exec(line.trim());
+      if (!match) return true;
+      const val = (match[1] ?? "").trim().replace(/^['"]|['"]$/g, "");
+      if (!val) {
+        changed = true;
+        return false;
+      }
+      if (!path.isAbsolute(val)) {
+        changed = true;
+        return false;
+      }
+      try {
+        accessSync(val, constants.F_OK);
+        return true;
+      } catch {
+        changed = true;
+        return false;
+      }
+    });
+    if (changed) {
+      writeFileSync(cfgPath, kept.join("\n"), "utf8");
+      log.info("sanitized invalid shellPath from omp config.yml");
+    }
+  } catch {
+    // config.yml 不存在或不可读时忽略
+  }
+}
+
+/**
+ * 将用户在设置里选择的 `preferredShell` 同步为本机真实绝对路径写入 omp 的 `shellPath`；
+ * `"auto"` 或目标 Shell 不存在时重置 `shellPath`，避免写入无效路径导致 omp 无法启动。
+ */
+export async function syncPreferredShellToOmp(preferred: PreferredShell): Promise<void> {
+  sanitizeBrokenOmpShellPath();
+  try {
+    await ompManager().ensureReady();
+    const resolved = resolveHostShellPath(preferred);
+    if (resolved === null) {
+      await configService().reset("shellPath");
+    } else {
+      await configService().set("shellPath", JSON.stringify(resolved));
+    }
+    onOmpConfigChanged("shellPath");
+  } catch (error) {
+    log.warn("syncPreferredShellToOmp failed", error instanceof Error ? error.message : error);
+  }
+}
+
 export function applyOmpStartupDefaults(): Promise<void> {
-  const done = applyGoalContinuationDefaultOnStartup().then(applySetupWizardDefaultOnStartup);
+  sanitizeBrokenOmpShellPath();
+  const done = applyGoalContinuationDefaultOnStartup()
+    .then(applySetupWizardDefaultOnStartup)
+    .then(() => {
+      const pref = getShellState().preferredShell ?? "auto";
+      if (pref !== "auto") return syncPreferredShellToOmp(pref);
+    });
   registerStartupDefaults(done);
   return done;
 }
