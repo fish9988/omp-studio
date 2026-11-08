@@ -1,6 +1,12 @@
 // 外壳界面状态：侧栏宽度、折叠、终端面板高度、历史会话排列（主进程持久化）和窄窗抽屉是否打开（只在内存）。
 // 拖动侧栏 / 终端拖拽条时不经过这里：拖拽条自己直接改 DOM，松手时才 commit（一次写 store、一次持久化）。
-import { limits, type HistoryOrder, type ShellState } from "../../../shared/ipc.ts";
+import {
+  limits,
+  type BrandStyle,
+  type HistoryOrder,
+  type MascotCharacter,
+  type ShellState,
+} from "../../../shared/ipc.ts";
 import { defaultTerminalHeight } from "../../../shared/ui/terminal-model.ts";
 import { createStore, useStoreValue } from "../store/create-store.ts";
 
@@ -19,6 +25,8 @@ const shellStore = createStore<ShellUiState>({
   terminalHeight: defaultTerminalHeight,
   historyOrder: "folder",
   chatWidth: 0,
+  brandStyle: "claude",
+  mascot: "clawd",
   drawerOpen: false,
 });
 
@@ -75,6 +83,16 @@ export function setSidebarCollapsed(sidebarCollapsed: boolean): void {
 export function setHistoryOrder(historyOrder: HistoryOrder): void {
   update({ historyOrder });
   persist({ historyOrder });
+}
+
+export function setBrandStyle(brandStyle: BrandStyle): void {
+  update({ brandStyle });
+  persist({ brandStyle });
+}
+
+export function setMascotCharacter(mascot: MascotCharacter): void {
+  update({ mascot });
+  persist({ mascot });
 }
 
 export function setDrawerOpen(drawerOpen: boolean): void {

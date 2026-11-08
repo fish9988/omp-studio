@@ -247,6 +247,8 @@ html[data-platform="darwin"] .topbar-left {
 }
 
 .panel {
+  /* --content-w 直接在 .panel 上求值，保证拖拽写入 --chat-current 时整条对话列、输入框和左右手柄同步响应 */
+  --content-w: var(--chat-current, clamp(var(--content-w-min), 80cqi, var(--content-w-max)));
   position: relative;
   display: flex;
   flex: 1;
@@ -320,39 +322,52 @@ html[data-platform="darwin"] .topbar-left {
 }
 
 /* 对话列左右两缘的宽度拖拽手柄（ChatWidthResizer.tsx，照 dsh-claude-style width-handle.css）：
-   10px 命中带贴着对话列左右边缘，悬停满 220ms（data-rest）或拖动中（data-dragging）才露出 2px 渐隐竖线。 */
+   14px 命中带贴着对话列左右边缘，悬停或拖动中露出 2px 导轨线与中点胶囊握把，支持 480px～面板全宽自由缩放。 */
 .chat-width-handle {
   position: absolute;
   top: var(--space-8);
   bottom: var(--space-8);
   z-index: calc(var(--z-sticky) + 2);
-  width: 10px;
+  width: 14px;
   cursor: col-resize;
   user-select: none;
   touch-action: none;
 }
 .chat-width-handle-left {
-  left: max(calc(var(--gutter) - 5px), calc(50% - var(--content-w) / 2 - 5px));
+  left: max(calc(var(--gutter) - 7px), calc(50% - min(100% - 2 * var(--gutter), var(--content-w)) / 2 - 7px));
 }
 .chat-width-handle-right {
-  right: max(calc(var(--gutter) - 5px), calc(50% - var(--content-w) / 2 - 5px));
+  right: max(calc(var(--gutter) - 7px), calc(50% - min(100% - 2 * var(--gutter), var(--content-w)) / 2 - 7px));
 }
 .chat-width-handle::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 4px;
+  left: 6px;
   width: 2px;
   border-radius: var(--radius-pill);
   background: linear-gradient(
     to bottom,
     transparent,
-    var(--border-strong) 18%,
+    var(--border-strong) 15%,
     var(--accent) 50%,
-    var(--border-strong) 82%,
+    var(--border-strong) 85%,
     transparent
   );
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.chat-width-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 6px;
+  height: 36px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
@@ -360,6 +375,11 @@ html[data-platform="darwin"] .topbar-left {
 .chat-width-handle[data-dragging]::after,
 .chat-width-handle:focus-visible::after {
   opacity: 0.85;
+}
+.chat-width-handle[data-rest]::before,
+.chat-width-handle[data-dragging]::before,
+.chat-width-handle:focus-visible::before {
+  opacity: 0.9;
 }
 .chat-width-handle[data-dragging]::after {
   transition: none;

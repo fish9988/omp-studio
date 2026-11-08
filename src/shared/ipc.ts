@@ -1005,9 +1005,19 @@ export interface ShellState {
   terminalHeight: number;
   /** 侧栏历史会话的排列：按文件夹（cwd）分组，或全部按时间。默认按文件夹。 */
   historyOrder: HistoryOrder;
-  /** 对话列与输入框的宽度（px），620–1400；0 表示未拖过（按自适应默认宽度）。 */
+  /** 对话列与输入框的宽度（px），480–2400；0 表示未拖过（按自适应默认宽度）。 */
   chatWidth?: number;
+  /** 顶栏与新任务页的品牌标志风格（Claude / DeepSeek / OMP）。 */
+  brandStyle?: BrandStyle;
+  /** 输入框右上角的桌面宠物形象（Claude 像素蟹 / DeepSeek 小鲸鱼 / OMP 像素 π / 关闭）。 */
+  mascot?: MascotCharacter;
 }
+
+export type BrandStyle = "claude" | "deepseek" | "omp";
+export const brandStyles: readonly BrandStyle[] = ["claude", "deepseek", "omp"];
+
+export type MascotCharacter = "clawd" | "deepy" | "omp" | "off";
+export const mascotCharacters: readonly MascotCharacter[] = ["clawd", "deepy", "omp", "off"];
 
 export type HistoryOrder = "folder" | "time";
 export const historyOrders: readonly HistoryOrder[] = ["folder", "time"];
@@ -1628,7 +1638,7 @@ export const limits = {
   terminalInputMaxChars: 65_536,
   terminalSizeRange: [2, 1000],
   terminalHeightRange: [120, 4000],
-  chatWidthRange: [620, 1400],
+  chatWidthRange: [480, 2400],
   urlMaxChars: 8192,
   maxLiveProcessesRange: [2, 16],
   /** `/goal` 的目标文字最大字符数。 */

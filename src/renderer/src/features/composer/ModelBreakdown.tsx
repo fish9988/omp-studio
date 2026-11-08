@@ -57,21 +57,57 @@ export function useSpeed(task: TaskState): Speed | null {
   const text = formatTokensPerSecond(lastRate);
   return text === null ? null : { text, live: false };
 }
+function formatCacheHitRate(input: number, cacheRead: number, cacheWrite: number): string | null {
+  const totalPrompt = input + cacheRead + cacheWrite;
+  if (totalPrompt <= 0) return null;
+  const pct = Math.round((cacheRead / totalPrompt) * 1000) / 10;
+  return `${pct}%`;
+}
 
 export function ModelBreakdown({ task, load, speed }: { task: TaskState; load: ModelUsageLoad; speed: Speed | null }) {
   const t = useT();
   const nameOf = (provider: string, modelId: string) =>
     task.model?.key.provider === provider && task.model.key.modelId === modelId ? task.model.name : modelId;
+
+  const sessionHitRate = (() => {
+    if (load.kind === "ready" && load.data.models.length > 0) {
+      let input = 0;
+      let cacheRead = 0;
+      let cacheWrite = 0;
+      for (const m of load.data.models) {
+        input += m.input;
+        cacheRead += m.cacheRead;
+        cacheWrite += m.cacheWrite;
+      }
+      return formatCacheHitRate(input, cacheRead, cacheWrite);
+    }
+    if (task.sessionUsage !== null) {
+      const tok = task.sessionUsage.tokens;
+      return formatCacheHitRate(tok.input, tok.cacheRead, tok.cacheWrite);
+    }
+    return null;
+  })();
+
   return (
     <div className="mb" data-testid="model-breakdown">
       <div className="ctx-head">
         <strong className="mb-title">{t("composer.breakdown.title")}</strong>
         {task.sessionUsage !== null && <span className="ctx-num">{formatCount(task.sessionUsage.tokens.total)}</span>}
       </div>
-      {speed !== null && (
-        <p className="ctx-note" data-testid="usage-tps" data-live={speed.live || undefined}>
-          {t("composer.usage.tps", { n: speed.text })}
-        </p>
+      {(speed !== null || sessionHitRate !== null) && (
+        <div className="mb-meta-row">
+          {speed !== null && (
+            <p className="ctx-note" data-testid="usage-tps" data-live={speed.live || undefined}>
+              {t("composer.usage.tps", { n: speed.text })}
+            </p>
+          )}
+          {sessionHitRate !== null && (
+            <p className="ctx-note mb-hit-summary" data-testid="usage-cache-hit">
+              <span>{t("composer.usage.cacheHit")}</span>
+              <span className="ctx-num">{sessionHitRate}</span>
+            </p>
+          )}
+        </div>
       )}
       {load.kind === "error" && (
         <p className="ctx-note" role="alert">
@@ -79,34 +115,41 @@ export function ModelBreakdown({ task, load, speed }: { task: TaskState; load: M
         </p>
       )}
       {load.kind === "ready" &&
-        load.data.models.map((row) => (
-          <section key={`${row.provider}/${row.modelId}`} className="mb-model" data-testid="model-usage">
-            <div className="mb-model-head">
-              <span className="mb-model-name" title={`${row.provider}/${row.modelId}`}>
-                {nameOf(row.provider, row.modelId)}
-              </span>
-              <span className="ctx-num">{row.cost > 0 ? formatMoney(row.cost) : null}</span>
-            </div>
-            <dl className="mb-grid">
-              <div>
-                <dt>{t("composer.usage.input")}</dt>
-                <dd className="ctx-num">{formatCount(row.input)}</dd>
+        load.data.models.map((row) => {
+          const rowHit = formatCacheHitRate(row.input, row.cacheRead, row.cacheWrite) ?? "0%";
+          return (
+            <section key={`${row.provider}/${row.modelId}`} className="mb-model" data-testid="model-usage">
+              <div className="mb-model-head">
+                <span className="mb-model-name" title={`${row.provider}/${row.modelId}`}>
+                  {nameOf(row.provider, row.modelId)}
+                </span>
+                <span className="ctx-num">{row.cost > 0 ? formatMoney(row.cost) : null}</span>
               </div>
-              <div>
-                <dt>{t("composer.usage.output")}</dt>
-                <dd className="ctx-num">{formatCount(row.output)}</dd>
-              </div>
-              <div>
-                <dt>{t("composer.usage.cache")}</dt>
-                <dd className="ctx-num">{formatCount(row.cacheRead)}</dd>
-              </div>
-              <div>
-                <dt>{t("composer.usage.cacheWrite")}</dt>
-                <dd className="ctx-num">{formatCount(row.cacheWrite)}</dd>
-              </div>
-            </dl>
-          </section>
-        ))}
+              <dl className="mb-grid">
+                <div>
+                  <dt>{t("composer.usage.input")}</dt>
+                  <dd className="ctx-num">{formatCount(row.input)}</dd>
+                </div>
+                <div>
+                  <dt>{t("composer.usage.output")}</dt>
+                  <dd className="ctx-num">{formatCount(row.output)}</dd>
+                </div>
+                <div>
+                  <dt>{t("composer.usage.cache")}</dt>
+                  <dd className="ctx-num">{formatCount(row.cacheRead)}</dd>
+                </div>
+                <div>
+                  <dt>{t("composer.usage.cacheWrite")}</dt>
+                  <dd className="ctx-num">{formatCount(row.cacheWrite)}</dd>
+                </div>
+                <div className="mb-grid-full" data-testid="model-cache-hit">
+                  <dt>{t("composer.usage.cacheHit")}</dt>
+                  <dd className="ctx-num">{rowHit}</dd>
+                </div>
+              </dl>
+            </section>
+          );
+        })}
       {load.kind === "ready" && load.data.whole !== null && (
         <p className="ctx-note" data-testid="model-usage-whole">
           {t("composer.breakdown.whole", {

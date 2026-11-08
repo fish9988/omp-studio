@@ -92,6 +92,8 @@ export function ConversationLine({ taskId, scroller }: { taskId: TaskId; scrolle
   const t = useT();
   const messages = useTspDerived(taskId, userMessages, sameUserMessages, USER_MESSAGE_NODES) ?? NONE;
   const [current, setCurrent] = useState(0);
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<number | undefined>(undefined);
   const stopLanding = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -125,9 +127,29 @@ export function ConversationLine({ taskId, scroller }: { taskId: TaskId; scrolle
     };
   }, [scroller, messages]);
 
-  useEffect(() => () => stopLanding.current?.(), []);
+  useEffect(
+    () => () => {
+      clearTimeout(closeTimer.current);
+      stopLanding.current?.();
+    },
+    [],
+  );
 
   if (messages.length < 2) return null;
+
+  const onEnter = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = undefined;
+    setOpen(true);
+  };
+
+  const onLeave = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = undefined;
+      setOpen(false);
+    }, 140);
+  };
 
   const jump = (id: string) => {
     const el = scroller.current;
@@ -144,22 +166,37 @@ export function ConversationLine({ taskId, scroller }: { taskId: TaskId; scrolle
   };
 
   return (
-    <nav className="tsp-convline" aria-label={t("scroll.line")} data-testid="conversation-line" data-tip-side="left">
-      {messages.map((message, index) => {
-        const label = t("scroll.lineItem", { n: index + 1, text: preview(message.text) });
-        return (
-          <button
-            key={message.id}
-            type="button"
-            className="tsp-convline-tick"
-            aria-label={label}
-            aria-current={index === current ? "location" : undefined}
-            title={label}
-            data-testid="conversation-line-tick"
-            onClick={() => jump(message.id)}
-          />
-        );
-      })}
+    <nav
+      className="tsp-convline"
+      aria-label={t("scroll.line")}
+      data-testid="conversation-line"
+      data-open={open ? "" : undefined}
+    >
+      <div
+        className="tsp-convline-card"
+        data-open={open ? "" : undefined}
+        onPointerEnter={onEnter}
+        onPointerLeave={onLeave}
+      >
+        {messages.map((message, index) => {
+          const shortText = preview(message.text);
+          const label = t("scroll.lineItem", { n: index + 1, text: shortText });
+          return (
+            <button
+              key={message.id}
+              type="button"
+              className="tsp-convline-tick"
+              aria-label={label}
+              aria-current={index === current ? "location" : undefined}
+              data-testid="conversation-line-tick"
+              onClick={() => jump(message.id)}
+            >
+              <span className="tsp-convline-text">{shortText || `#${index + 1}`}</span>
+              <span className="tsp-convline-dash" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

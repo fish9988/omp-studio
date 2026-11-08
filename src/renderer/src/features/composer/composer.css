@@ -57,10 +57,19 @@
   right: 18px;
   bottom: 100%;
   z-index: 2;
-  width: 48px;
-  height: 32px;
-  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 48px;
+  height: 34px;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
   transform-origin: bottom center;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.composer-crab:hover {
+  transform: translateY(-2px);
 }
 .composer-crab-svg {
   display: block;
@@ -80,10 +89,9 @@
   animation-play-state: var(--play-state);
 }
 .composer-crab[data-state="waiting"] .composer-crab-svg {
-  animation: crab-bounce 800ms var(--ease-in-out) infinite;
+  animation: crab-bounce 650ms var(--ease-in-out) infinite;
   animation-play-state: var(--play-state);
 }
-/* 草稿发出第一句话后换成任务的输入框（新节点，见 App.tsx fromDraft）：边框直接是聚焦色，不从灰色过渡过去（否则闪一下） */
 .composer-stack[data-from-draft] .composer {
   transition: none;
 }
@@ -583,6 +591,18 @@ button.usage-context:hover,
 .mb-title {
   font-weight: var(--fw-strong);
 }
+.mb-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.mb-hit-summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  margin-left: auto;
+}
 .mb-model {
   display: flex;
   flex-direction: column;
@@ -608,6 +628,12 @@ button.usage-context:hover,
   justify-content: space-between;
   gap: var(--space-2);
 }
+.mb-grid > .mb-grid-full {
+  grid-column: 1 / -1;
+  padding-top: var(--space-0-5);
+  margin-top: var(--space-0-5);
+  border-top: 1px dashed var(--border-subtle);
+}
 .mb-grid dt {
   color: var(--text-3);
   font-size: var(--fs-xs);
@@ -615,7 +641,6 @@ button.usage-context:hover,
 .mb-grid dd {
   margin: 0;
 }
-
 .send {
   display: grid;
   place-items: center;

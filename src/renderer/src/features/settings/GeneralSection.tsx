@@ -6,13 +6,16 @@ import {
   fontSizeSteps,
   type BackdropMode,
   type BackdropStrength,
+  type BrandStyle,
   type IdleClose,
   type LocalePreference,
+  type MascotCharacter,
 } from "../../../../shared/ipc.ts";
 import type { MessageKey } from "../../../../shared/i18n/index.ts";
 import { chordKeys } from "../../../../shared/tsp/omp-keybindings.ts";
 import { useT } from "../../i18n/use-t.ts";
 import { shortcutKeys } from "../../app/platform-keys.ts";
+import { setBrandStyle, setMascotCharacter, useShellValue } from "../../app/shell-store.ts";
 import { useAppInfo, useSettings } from "../../store/index.ts";
 import { Badge, Button, Row, SectionHead, Segmented, Switch } from "../../ui/controls.tsx";
 import { reportError } from "../../ui/errors.ts";
@@ -89,6 +92,16 @@ export function GeneralSection() {
     { value: "zh-CN", label: t("settings.language.zh") },
     { value: "en", label: t("settings.language.en") },
   ] as const;
+  const brandStyle = useShellValue("brandStyle") ?? "claude";
+  const brandOptions = (["claude", "deepseek", "omp"] as const).map((value) => ({
+    value,
+    label: t(`settings.brandStyle.${value}`),
+  }));
+  const mascot = useShellValue("mascot") ?? "clawd";
+  const mascotOptions = (["clawd", "deepy", "omp", "off"] as const).map((value) => ({
+    value,
+    label: t(`settings.mascot.${value}`),
+  }));
   const backdrop = settings?.backdrop ?? "theme";
   const backdropOptions = (["theme", "custom", "none"] as const).map((value) => ({
     value,
@@ -113,6 +126,30 @@ export function GeneralSection() {
       <SectionHead title={t("settings.appearance")} />
       <ThemeGallery value={settings?.theme ?? "system"} />
       <div className="st-cells">
+        <Row label={t("settings.brandStyle")}>
+          {(labelId) => (
+            <Segmented<BrandStyle>
+              size="sm"
+              value={brandStyle}
+              options={brandOptions}
+              labelledBy={labelId}
+              onChange={(next) => setBrandStyle(next)}
+              testId="setting-brand-style"
+            />
+          )}
+        </Row>
+        <Row label={t("settings.mascot")}>
+          {(labelId) => (
+            <Segmented<MascotCharacter>
+              size="sm"
+              value={mascot}
+              options={mascotOptions}
+              labelledBy={labelId}
+              onChange={(next) => setMascotCharacter(next)}
+              testId="setting-mascot"
+            />
+          )}
+        </Row>
         <Row label={t("settings.backdrop")}>
           {(labelId) => (
             <>

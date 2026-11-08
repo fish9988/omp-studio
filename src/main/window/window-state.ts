@@ -2,7 +2,7 @@
 // 侧栏宽度和折叠由渲染进程经 setShellState 写入（spec §3.1）。
 import { app, screen, type BrowserWindow, type Rectangle } from "electron";
 import path from "node:path";
-import { historyOrders, limits, type ShellState } from "../../shared/ipc.ts";
+import { brandStyles, historyOrders, limits, mascotCharacters, type ShellState } from "../../shared/ipc.ts";
 import { parseBoolean, parseInteger, parseOneOf, parseRecord } from "../ipc/validate.ts";
 import { readJsonFile, writeJsonFileAtomic } from "../settings/json-file.ts";
 
@@ -15,6 +15,8 @@ const defaultShellState: ShellState = {
   terminalHeight: 280,
   historyOrder: "folder",
   chatWidth: 0,
+  brandStyle: "claude",
+  mascot: "clawd",
 };
 
 interface WindowBounds {
@@ -102,6 +104,20 @@ function load(): PersistedState {
   try {
     if (raw["chatWidth"] !== undefined && raw["chatWidth"] !== 0) {
       shell.chatWidth = parseInteger(raw["chatWidth"], "chatWidth", ...limits.chatWidthRange);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["brandStyle"] !== undefined) {
+      shell.brandStyle = parseOneOf(raw["brandStyle"], "brandStyle", brandStyles);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["mascot"] !== undefined) {
+      shell.mascot = parseOneOf(raw["mascot"], "mascot", mascotCharacters);
     }
   } catch {
     // 保留默认值。

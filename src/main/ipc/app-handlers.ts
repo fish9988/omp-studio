@@ -1,9 +1,11 @@
 // 应用和设置：读写走 settings-store（userData/settings.json）；外壳状态走 window-state。
 import { app, shell } from "electron";
 import {
+  brandStyles,
   editCommands,
   historyOrders,
   limits,
+  mascotCharacters,
   titleBarFades,
   type AppInfo,
   type HandlerGroup,
@@ -109,6 +111,12 @@ export const appHandlers: HandlerGroup<
       ...(record["chatWidth"] !== undefined && {
         chatWidth:
           record["chatWidth"] === 0 ? 0 : parseInteger(record["chatWidth"], "chatWidth", ...limits.chatWidthRange),
+      }),
+      ...(record["brandStyle"] !== undefined && {
+        brandStyle: parseOneOf(record["brandStyle"], "brandStyle", brandStyles),
+      }),
+      ...(record["mascot"] !== undefined && {
+        mascot: parseOneOf(record["mascot"], "mascot", mascotCharacters),
       }),
     });
   },

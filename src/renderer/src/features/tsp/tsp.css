@@ -227,66 +227,130 @@
   outline-offset: 2px;
 }
 
-/* 对话线：贴对话区右缘（覆盖式滚动条左边），每条用户消息一个横刻度，从上往下排，整列在对话区上下各留 --space-6 的高度里竖直居中；
- * 消息多时刻度间距压缩（最小 3px），压到最小还放不下就在线里滚动（不显示滚动条；safe center 让溢出时从第一条排起）。
- * 刻度平时 --border-strong 短线，悬停 --text-2，正在读的那一条 --text 且更长。宽 8（2026-10-29 从 12 收窄）：对话列贴满留白（--gutter 24）时，
- * 刻度和气泡右缘之间还留 4px，不再贴着用户气泡；
- * 刻度之外的空白不接点击，点得到下面的对话。 */
+/* 对话线（复刻 dsh-claude-style turn-nav）：
+ * 平时贴在对话区右缘竖直居中，每条用户消息显示一根 20×2px 的横刻度（当前轮加深变长）；
+ * 鼠标悬停到刻度轨时，原位展开 288px 宽的轮次列表浮层卡片，显示每一轮的提问摘要与右侧对齐刻度线，支持滚轮浏览与点击跳转。 */
 .tsp-convline {
   position: absolute;
   top: var(--space-6);
   bottom: var(--space-6);
-  right: calc(var(--scrollbar-hit) + 2px);
-  z-index: var(--z-sticky);
+  right: calc(var(--scrollbar-hit) + 4px);
+  z-index: calc(var(--z-sticky) + 3);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   justify-content: safe center;
-  width: var(--space-2);
-  overflow-y: auto;
-  scrollbar-width: none;
   pointer-events: none;
 }
-.tsp-convline-tick {
-  flex: 0 1 var(--space-3);
-  min-height: 3px;
-  width: 100%;
-  padding: 0;
-  border: 0;
+.tsp-convline-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 28px;
+  max-height: min(calc(100% - 16px), 320px);
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
   background: transparent;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  pointer-events: auto;
+  transition:
+    width var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    padding var(--dur-fast) var(--ease-out);
+}
+.tsp-convline-card::-webkit-scrollbar {
+  display: none;
+}
+.tsp-convline-card[data-open] {
+  width: 288px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  background: var(--bg-overlay);
+  border-color: var(--border);
+  box-shadow: var(--shadow-2);
+}
+.tsp-convline-tick {
+  flex: none;
+  height: 24px;
+  width: 100%;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: 24px;
+  text-align: left;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: var(--space-3);
   cursor: pointer;
   pointer-events: auto;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
-/* 长短用 transform 缩放，不动 width：滚动时当前那一条一直在换，过渡 width 会让每一帧都重新排版、整个视口重画（2026-10-28 实测滚动卡顿的原因）。 */
-.tsp-convline-tick::after {
-  content: "";
-  width: var(--space-2);
+.tsp-convline-card[data-open] .tsp-convline-tick {
+  padding: 0 8px 0 10px;
+  justify-content: space-between;
+}
+.tsp-convline-text {
+  flex: 1;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tsp-convline-card[data-open] .tsp-convline-text {
+  max-width: none;
+  opacity: 1;
+}
+.tsp-convline-dash {
+  flex: none;
+  width: 20px;
   height: 2px;
-  border-radius: 1px;
+  border-radius: 2px;
   background: var(--border-strong);
-  transform: scaleX(0.75);
+  transform: scaleX(0.6);
   transform-origin: right center;
   transition:
     transform var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out);
 }
-.tsp-convline-tick:hover::after {
-  transform: none;
+.tsp-convline-tick:hover {
+  color: var(--text);
+}
+.tsp-convline-card[data-open] .tsp-convline-tick:hover {
+  background: var(--bg-hover);
+}
+.tsp-convline-tick:hover .tsp-convline-dash {
+  transform: scaleX(0.9);
   background: var(--text-2);
 }
-.tsp-convline-tick[aria-current]::after {
+.tsp-convline-tick[aria-current] {
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+.tsp-convline-tick[aria-current] .tsp-convline-dash {
   transform: none;
   background: var(--text);
 }
 .tsp-convline-tick:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-  border-radius: var(--radius-xs);
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
 }
-
 /* ───────────────────────── 通用：tone、可点击、隐藏、空容器 ───────────────────────── */
 
 [data-tone="neutral"],
@@ -789,7 +853,7 @@
   word-break: break-all;
 }
 .tsp-text.tsp-prose {
-  max-width: calc(80 * var(--tsp-cw));
+  max-width: 100%;
 }
 .tsp-text.tsp-nowrap {
   white-space: pre;

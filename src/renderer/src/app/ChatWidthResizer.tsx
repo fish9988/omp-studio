@@ -5,13 +5,21 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
 import { chatWidthRange, clampChatWidth, commitChatWidth, defaultChatWidth } from "./shell-store.ts";
 
-const REST_MS = 220;
+const REST_MS = 60;
 const KEY_STEP = 24;
+
+function clampToPanel(panel: HTMLElement | null, value: number): number {
+  const maxInPanel =
+    panel && panel.clientWidth > chatWidthRange[0] + 32
+      ? Math.min(chatWidthRange[1], panel.clientWidth - 32)
+      : chatWidthRange[1];
+  return Math.round(Math.min(maxInPanel, Math.max(chatWidthRange[0], value)));
+}
 
 function measureCurrentWidth(panel: HTMLElement | null, fallback: number): number {
   if (!panel) return fallback > 0 ? fallback : defaultChatWidth;
   const col = panel.querySelector<HTMLElement>(".tsp-column, .composer-stack, .empty > *");
-  if (col && col.offsetWidth > 0) return clampChatWidth(col.offsetWidth);
+  if (col && col.offsetWidth > 0) return clampToPanel(panel, col.offsetWidth);
   return fallback > 0 ? fallback : defaultChatWidth;
 }
 
@@ -56,7 +64,7 @@ function HandleSide({
     if (!drag.current) return width > 0 ? width : defaultChatWidth;
     const dx = clientX - drag.current.startX;
     const delta = side === "right" ? dx * 2 : -dx * 2;
-    return clampChatWidth(drag.current.startWidth + delta);
+    return clampToPanel(panel.current, drag.current.startWidth + delta);
   };
 
   const onPointerEnter = () => {
