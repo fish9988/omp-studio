@@ -33,6 +33,7 @@ import { useDraftView } from "./use-draft-view.ts";
 import { useFileMenu } from "./use-file-menu.ts";
 import { useNewTaskDefault } from "./use-new-task-default.ts";
 import { clearFirstPrompt, setFirstPrompt } from "../tsp/first-prompt-store.ts";
+import { ClawdMascot } from "./ClawdMascot.tsx";
 import "./composer.css";
 
 /** projectTools：工具行里紧跟审批胶囊的部分（空状态放项目标签）。 */
@@ -176,6 +177,7 @@ export function DraftComposer({ projectId, projectTools }: { projectId: ProjectI
         onDrop={attach.onDrop}
         onMouseDown={(event) => keepFieldFocus(event, fieldRef.current)}
       >
+        <ClawdMascot status="idle" />
         <SlashMenu
           id="slash-menu"
           open={slashMenu.open}

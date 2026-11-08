@@ -17,7 +17,7 @@ import {
   useSelectedTaskId,
   useTasksState,
 } from "../../store/index.ts";
-import { Close } from "../../icons.tsx";
+import { Close, Puzzle } from "../../icons.tsx";
 import { Button, IconButton, TextField } from "../../ui/controls.tsx";
 import { OverlayScrollbar } from "../../ui/OverlayScrollbar.tsx";
 import { useInstallUpdate } from "../settings/use-install-update.tsx";
@@ -309,6 +309,16 @@ export function Sidebar() {
           <span className="sb-new-hint" aria-hidden="true">
             {shortcutLabel("Ctrl Shift O")}
           </span>
+        </button>
+
+        <button
+          type="button"
+          className="sb-new"
+          data-testid="sidebar-plugins"
+          onClick={() => showView("settings", { section: "extensions" })}
+        >
+          <Puzzle size={15} />
+          <span className="sb-new-label">{t("settings.extensions")}</span>
         </button>
       </div>
 

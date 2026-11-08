@@ -66,6 +66,29 @@
   border-radius: var(--radius-pill);
   background: var(--accent);
 }
+.tg-foot {
+  margin-top: var(--space-1);
+  padding: var(--space-1-5) var(--space-2-5) var(--space-0-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.tg-settings-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-1) var(--space-1-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.tg-settings-link:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 
 /* 模型选择器里的 Prewalk 一行：换模型说明（长了换行）+ 三个动作；omp 的回话在下一行。 */
 .tg-prewalk {

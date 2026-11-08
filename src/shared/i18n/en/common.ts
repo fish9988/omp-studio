@@ -9,4 +9,5 @@ export const common = {
   retry: "Retry",
   expand: "Expand",
   noMatches: "No matches",
+  all: "All",
 } satisfies Record<keyof typeof zhCN, MessageEntry>;

@@ -121,10 +121,20 @@ html[data-platform="darwin"] .topbar-left {
   align-items: center;
   padding: 0 var(--space-2) 0 var(--space-1-5);
 }
-/* 顶栏里 2px 一格的像素字:x 高中线和 π 中线对齐时，字的基线比旁边标题的基线高 1px、x 高中线比侧栏按钮的图标高 1px，
-   看起来字整体偏上。往下挪半格(1px):基线对上标题的拉丁字母，x 高中线对上按钮图标。新任务页的大标志不挪。 */
-.topbar-brand .pixel-logo-text {
-  transform: translateY(0.5px);
+.claude-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+.claude-wordmark {
+  display: block;
+  transform: translateY(1px);
+}
+.claude-brand-version {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+  margin-left: var(--space-0-5);
 }
 
 .crumb {
@@ -307,6 +317,56 @@ html[data-platform="darwin"] .topbar-left {
 
 .sidebar-resizer:hover {
   background: var(--border);
+}
+
+/* 对话列左右两缘的宽度拖拽手柄（ChatWidthResizer.tsx，照 dsh-claude-style width-handle.css）：
+   10px 命中带贴着对话列左右边缘，悬停满 220ms（data-rest）或拖动中（data-dragging）才露出 2px 渐隐竖线。 */
+.chat-width-handle {
+  position: absolute;
+  top: var(--space-8);
+  bottom: var(--space-8);
+  z-index: calc(var(--z-sticky) + 2);
+  width: 10px;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+.chat-width-handle-left {
+  left: max(calc(var(--gutter) - 5px), calc(50% - var(--content-w) / 2 - 5px));
+}
+.chat-width-handle-right {
+  right: max(calc(var(--gutter) - 5px), calc(50% - var(--content-w) / 2 - 5px));
+}
+.chat-width-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--border-strong) 18%,
+    var(--accent) 50%,
+    var(--border-strong) 82%,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.chat-width-handle[data-rest]::after,
+.chat-width-handle[data-dragging]::after,
+.chat-width-handle:focus-visible::after {
+  opacity: 0.85;
+}
+.chat-width-handle[data-dragging]::after {
+  transition: none;
+  opacity: 1;
+}
+.chat-width-handle:focus-visible {
+  outline: none;
 }
 
 /* 窄窗口：抽屉盖在主区上，主区宽度不变。位置和滑动见上面 .sidebar-column 的规则；

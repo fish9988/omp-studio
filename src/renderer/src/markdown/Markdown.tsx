@@ -34,6 +34,10 @@ function loadKatex(): Promise<void> {
   );
   return loading;
 }
+// 模块加载后空闲时预热 KaTeX，对话里遇到公式时直接渲染、不闪原始源码。
+if (typeof window !== "undefined") {
+  loadKatex().catch(() => {});
+}
 
 function subscribeKatex(listener: () => void): () => void {
   katexListeners.add(listener);

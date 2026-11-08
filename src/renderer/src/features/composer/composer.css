@@ -27,23 +27,61 @@
   display: none;
 }
 .composer {
+  position: relative;
   container-type: inline-size;
-  padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-2);
+  padding: var(--space-1-5) var(--space-2) var(--space-1-5) var(--space-2-5);
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius-composer);
+  border-radius: 18px;
   box-shadow: var(--shadow-composer);
-  transition: border-color var(--dur-instant);
+  transition:
+    border-color var(--dur-instant),
+    box-shadow var(--dur-instant);
 }
-/* 上面输入区，下面工具行，同一块底上、没有分隔线；外框的内边距（6/6/6/8）已经给了控件和边缘的留白。 */
+/* 上面输入区，下面工具行，同一块底上、没有分隔线 */
 .composer-body {
-  min-height: 42px;
-  padding: var(--space-2-5) var(--space-2-5) var(--space-1);
+  min-height: 40px;
+  padding: var(--space-2) var(--space-2) var(--space-1);
 }
-/* 悬停和聚焦都只把边框加深一档，不用强调色、不加外圈（2026-10-24 质感改版：紫色留给进行中和选中，输入框一直聚焦着，染色就一直在） */
-.composer:hover,
+.composer:hover {
+  border-color: var(--border-strong);
+}
 .composer:focus-within {
   border-color: var(--border-strong);
+  box-shadow:
+    var(--shadow-composer),
+    0 0 0 3px var(--bg-hover);
+}
+.composer-crab {
+  position: absolute;
+  right: 18px;
+  bottom: 100%;
+  z-index: 2;
+  width: 48px;
+  height: 32px;
+  pointer-events: none;
+  transform-origin: bottom center;
+}
+.composer-crab-svg {
+  display: block;
+  image-rendering: pixelated;
+}
+@keyframes crab-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.composer-crab[data-state="running"] .composer-crab-svg {
+  animation: crab-bounce 500ms var(--ease-in-out) infinite;
+  animation-play-state: var(--play-state);
+}
+.composer-crab[data-state="waiting"] .composer-crab-svg {
+  animation: crab-bounce 800ms var(--ease-in-out) infinite;
+  animation-play-state: var(--play-state);
 }
 /* 草稿发出第一句话后换成任务的输入框（新节点，见 App.tsx fromDraft）：边框直接是聚焦色，不从灰色过渡过去（否则闪一下） */
 .composer-stack[data-from-draft] .composer {

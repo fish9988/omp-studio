@@ -17,8 +17,8 @@ export interface ThemeSpec {
 
 /** 排列顺序就是设置页主题画廊的顺序。 */
 export const themes = {
-  light: { dark: false, sidebar: "#efefed", text: "#161614", scrim: "rgba(20, 20, 18, 0.32)", art: false },
-  dark: { dark: true, sidebar: "#0f0f0e", text: "#e9e9e6", scrim: "rgba(5, 5, 4, 0.56)", art: false },
+  light: { dark: false, sidebar: "#fafafa", text: "#161616", scrim: "rgba(20, 20, 19, 0.32)", art: false },
+  dark: { dark: true, sidebar: "#1f1f1f", text: "#fdfdfd", scrim: "rgba(5, 5, 4, 0.56)", art: false },
   "whale-dark": { dark: true, sidebar: "#0a0f1e", text: "#e6ebf7", scrim: "rgba(3, 6, 14, 0.6)", art: true },
   "whale-light": { dark: false, sidebar: "#edf1fa", text: "#121a33", scrim: "rgba(10, 16, 36, 0.32)", art: true },
   sakura: { dark: false, sidebar: "#f9ecf1", text: "#2b1b23", scrim: "rgba(43, 20, 30, 0.3)", art: true },

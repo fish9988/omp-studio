@@ -8,4 +8,5 @@ export const common = {
   retry: "重试",
   expand: "展开",
   noMatches: "没有匹配的选项",
+  all: "全部",
 } satisfies Record<string, MessageEntry>;

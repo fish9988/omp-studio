@@ -45,6 +45,24 @@ function textSpans(p: Readonly<Record<string, unknown>>): readonly TspSpan[] | s
   return typeof p.text === "string" ? p.text : "";
 }
 
+/** 检测纯文本或单段无特殊样式的文本里是否含有 LaTeX 公式分隔符（$…$、$$…$$、\(…\)、\[…\]）。 */
+const MATH_PATTERN =
+  /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|(?<!\$)\$(?!\$|\s)[^\n$]+?(?<!\s)\$(?!\$|\d))/;
+
+function extractMathText(content: readonly TspSpan[] | string): string | null {
+  if (typeof content === "string") {
+    return MATH_PATTERN.test(content) ? cleanGlyphs(content) : null;
+  }
+  if (content.length === 1) {
+    const only = content[0];
+    if (typeof only === "string") return MATH_PATTERN.test(only) ? cleanGlyphs(only) : null;
+    if (only && only.href === undefined && (only.s === undefined || only.s === "prose") && MATH_PATTERN.test(only.t)) {
+      return cleanGlyphs(only.t);
+    }
+  }
+  return null;
+}
+
 /** 父节点是搜索来源行（omp.tool.source）。 */
 function inSourceRow({ node, ctx }: NodeProps): boolean {
   if (node.parent === null) return false;
@@ -105,6 +123,16 @@ export function Text(props: NodeProps) {
         </span>
       </div>
     );
+  }
+  if (!oneLine && lines === null) {
+    const mathText = extractMathText(content);
+    if (mathText !== null) {
+      return (
+        <div {...dom}>
+          <Markdown source={mathText} />
+        </div>
+      );
+    }
   }
   return (
     <div {...dom}>

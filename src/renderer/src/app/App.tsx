@@ -63,6 +63,7 @@ import {
 import { AboutDialog } from "./AboutDialog.tsx";
 import { setDrawerOpen, setSidebarCollapsed, useShellValue } from "./shell-store.ts";
 import { SidebarResizer } from "./SidebarResizer.tsx";
+import { ChatWidthResizer } from "./ChatWidthResizer.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { useNavigation } from "./use-navigation.ts";
 import { useDialogSlot, usePresence } from "../ui/presence.ts";
@@ -159,8 +160,10 @@ export function App() {
   useDraftTerminalCleanup(draftKey);
   const sidebarWidth = useShellValue("sidebarWidth");
   const sidebarCollapsed = useShellValue("sidebarCollapsed");
+  const chatWidth = useShellValue("chatWidth") ?? 0;
   const drawerOpen = useShellValue("drawerOpen");
   const sidebarColumn = useRef<HTMLDivElement>(null);
+  const mainPanel = useRef<HTMLElement>(null);
   const narrow = useMediaQuery(narrowQuery);
   // 跟随系统时实际用 light / dark（都没有插图）；用来判断"主题插图"这次画不画。
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -449,17 +452,20 @@ export function App() {
           {view === "settings" && !narrow ? <SettingsNav /> : <Sidebar />}
         </div>
         <main
+          ref={mainPanel}
           className="panel"
           data-testid="main-panel"
           data-backdrop={backdrop}
           data-backdrop-strength={backdrop && settings?.backdropStrength}
           style={
-            backdrop === "custom"
-              ? ({ "--bd-image": `url("app://studio/@backdrop/${customBackdrop}")` } as CSSProperties)
-              : undefined
+            {
+              ...(backdrop === "custom" ? { "--bd-image": `url("app://studio/@backdrop/${customBackdrop}")` } : {}),
+              ...(chatWidth > 0 ? { "--chat-current": `${chatWidth}px` } : {}),
+            } as CSSProperties
           }
         >
           {!narrow && sidebarShown && <SidebarResizer width={sidebarWidth} column={sidebarColumn} />}
+          {!narrow && view === "conversation" && <ChatWidthResizer width={chatWidth} panel={mainPanel} />}
           {/* 过程区是 omp 的节点（TspView），输入框是 studio 的 Composer。最近看过的任务的 TspView 都在这里，只有当前任务的显示；
               进设置、回空状态时也留着。key 带前缀，和下面同一任务 id 的兄弟区分开。
               进设置时当前任务的过程区不藏进 Activity（parked）：长对话从 display:none 回来要把上万个节点重算样式、重挂所有 effect，

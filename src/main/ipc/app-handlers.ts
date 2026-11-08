@@ -106,6 +106,10 @@ export const appHandlers: HandlerGroup<
       ...(record["historyOrder"] !== undefined && {
         historyOrder: parseOneOf(record["historyOrder"], "historyOrder", historyOrders),
       }),
+      ...(record["chatWidth"] !== undefined && {
+        chatWidth:
+          record["chatWidth"] === 0 ? 0 : parseInteger(record["chatWidth"], "chatWidth", ...limits.chatWidthRange),
+      }),
     });
   },
   setTitleBarDimmed: async (dimmed, fade) =>

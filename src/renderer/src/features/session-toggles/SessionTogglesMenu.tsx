@@ -14,6 +14,7 @@ import {
 } from "../../../../shared/omp-output/toggles.ts";
 import { useT } from "../../i18n/use-t.ts";
 import { Sliders } from "../../icons.tsx";
+import { showView } from "../../store/index.ts";
 import { reportOmpError } from "../../ui/errors.ts";
 import { Button, Segmented } from "../../ui/controls.tsx";
 import { Popover } from "../../ui/Popover.tsx";
@@ -174,6 +175,21 @@ export function SessionTogglesMenu({ taskId, task }: { taskId: TaskId; task: Tas
               />
             </div>
             {task.composerMode === null && <ModeSection taskId={taskId} task={task} />}
+            <div className="tg-foot">
+              <button
+                type="button"
+                className="tg-settings-link"
+                onClick={() => {
+                  close();
+                  showView("settings", { section: "extensions" });
+                }}
+                data-testid="toggles-open-settings"
+              >
+                <span>
+                  {t("settings.extensions")} · {t("sidebar.settings")} →
+                </span>
+              </button>
+            </div>
           </div>
         )}
       </Popover>

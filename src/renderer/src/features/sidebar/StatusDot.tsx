@@ -49,7 +49,12 @@ function Glyph({ kind }: { kind: Kind }) {
 
 /** 按形状画一个状态图标；none 只留槽位。任务和历史会话共用。`title` = 悬停说明（图标本身只有形状和颜色）。 */
 function StatusMark({ kind, label, title }: { kind: DotKind; label: string; title?: string }) {
-  if (kind === "none") return <span key="none" className="sb-dot" aria-hidden="true" />;
+  if (kind === "none")
+    return (
+      <span key="none" className="sb-dot sb-dot-none" aria-hidden="true">
+        <span className="sb-dot-hollow" />
+      </span>
+    );
   const mark = (
     <svg className="sb-dot-mark" viewBox="0 0 16 16" aria-hidden="true">
       <Glyph kind={kind} />

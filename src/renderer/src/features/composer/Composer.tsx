@@ -44,6 +44,7 @@ import { userMessageTexts } from "../../../../shared/tsp/user-messages.ts";
 import { GATE_ACTION_APPROVE, GATE_ACTION_DETAILS, TSP_APPROVAL_DIALOG_ID } from "../../../../shared/tsp/gate.ts";
 import { PathLabel } from "../empty/ProjectLabel.tsx";
 import { Button } from "../../ui/controls.tsx";
+import { ClawdMascot } from "./ClawdMascot.tsx";
 
 export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDraft?: boolean }) {
   const t = useT();
@@ -373,6 +374,7 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
         onDrop={attach.onDrop}
         onMouseDown={(event) => keepFieldFocus(event, fieldRef.current)}
       >
+        <ClawdMascot status={task.status} />
         <SlashMenu
           id="slash-menu"
           open={slashOpen}

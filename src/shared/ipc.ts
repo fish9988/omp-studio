@@ -1005,6 +1005,8 @@ export interface ShellState {
   terminalHeight: number;
   /** 侧栏历史会话的排列：按文件夹（cwd）分组，或全部按时间。默认按文件夹。 */
   historyOrder: HistoryOrder;
+  /** 对话列与输入框的宽度（px），620–1400；0 表示未拖过（按自适应默认宽度）。 */
+  chatWidth?: number;
 }
 
 export type HistoryOrder = "folder" | "time";
@@ -1626,6 +1628,7 @@ export const limits = {
   terminalInputMaxChars: 65_536,
   terminalSizeRange: [2, 1000],
   terminalHeightRange: [120, 4000],
+  chatWidthRange: [620, 1400],
   urlMaxChars: 8192,
   maxLiveProcessesRange: [2, 16],
   /** `/goal` 的目标文字最大字符数。 */

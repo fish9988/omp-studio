@@ -14,6 +14,7 @@ const defaultShellState: ShellState = {
   sidebarCollapsed: false,
   terminalHeight: 280,
   historyOrder: "folder",
+  chatWidth: 0,
 };
 
 interface WindowBounds {
@@ -95,6 +96,13 @@ function load(): PersistedState {
   }
   try {
     shell.historyOrder = parseOneOf(raw["historyOrder"], "historyOrder", historyOrders);
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["chatWidth"] !== undefined && raw["chatWidth"] !== 0) {
+      shell.chatWidth = parseInteger(raw["chatWidth"], "chatWidth", ...limits.chatWidthRange);
+    }
   } catch {
     // 保留默认值。
   }

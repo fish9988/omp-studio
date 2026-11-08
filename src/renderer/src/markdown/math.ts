@@ -33,9 +33,9 @@ function findDollarClose(src: string, from: number, max: number): number {
   return -1;
 }
 
-function findParenClose(src: string, from: number, max: number): number {
+function findPairClose(src: string, from: number, max: number, firstChar: number, secondChar: number): number {
   for (let i = from; i + 1 < max; i += 1) {
-    if (src.charCodeAt(i) === BACKSLASH && src.charCodeAt(i + 1) === 0x29 && !isEscaped(src, i)) return i;
+    if (src.charCodeAt(i) === firstChar && src.charCodeAt(i + 1) === secondChar && !isEscaped(src, i)) return i;
   }
   return -1;
 }
@@ -47,13 +47,23 @@ function mathInline(state: StateInline, silent: boolean): boolean {
   let close: number;
   if (code === DOLLAR) {
     const next = src.charCodeAt(pos + 1);
-    if (pos + 1 >= posMax || isSpace(next) || next === DOLLAR) return false;
-    if (pos > 0 && src.charCodeAt(pos - 1) === DOLLAR) return false;
-    open = "$";
-    close = findDollarClose(src, pos + 1, posMax);
+    if (next === DOLLAR) {
+      if (pos + 2 >= posMax || src.charCodeAt(pos + 2) === DOLLAR) return false;
+      if (pos > 0 && src.charCodeAt(pos - 1) === DOLLAR) return false;
+      open = "$$";
+      close = findPairClose(src, pos + 2, posMax, DOLLAR, DOLLAR);
+    } else {
+      if (pos + 1 >= posMax || isSpace(next)) return false;
+      if (pos > 0 && src.charCodeAt(pos - 1) === DOLLAR) return false;
+      open = "$";
+      close = findDollarClose(src, pos + 1, posMax);
+    }
   } else if (code === BACKSLASH && src.charCodeAt(pos + 1) === 0x28) {
     open = "\\(";
-    close = findParenClose(src, pos + 2, posMax);
+    close = findPairClose(src, pos + 2, posMax, BACKSLASH, 0x29);
+  } else if (code === BACKSLASH && src.charCodeAt(pos + 1) === 0x5b) {
+    open = "\\[";
+    close = findPairClose(src, pos + 2, posMax, BACKSLASH, 0x5d);
   } else {
     return false;
   }
@@ -65,7 +75,7 @@ function mathInline(state: StateInline, silent: boolean): boolean {
     token.content = content;
     token.markup = open;
   }
-  state.pos = close + (open === "$" ? 1 : 2);
+  state.pos = close + open.length;
   return true;
 }
 
@@ -88,7 +98,7 @@ function mathBlock(state: StateBlock, startLine: number, endLine: number, silent
   if (rest.endsWith(close)) {
     content = rest.slice(0, -close.length);
   } else {
-    // 多行：找到以闭分隔符结尾的行；遇到空行就放弃，避免一个没写完的 $$ 吞掉后面整段。
+    // 多行：找到以闭分隔符结尾的行；遇到空行就放弃，避免一个没写完的 $$ 吞掉后面整段（也是 parseStreaming 按空行切块的不变量）。
     let found = -1;
     for (let line = startLine + 1; line < endLine; line += 1) {
       const text = state.src.slice(state.bMarks[line]! + state.tShift[line]!, state.eMarks[line]!).trimEnd();

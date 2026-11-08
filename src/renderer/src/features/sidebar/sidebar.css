@@ -333,10 +333,7 @@
   background: var(--bg-hover);
 }
 .sb-row[data-selected="true"] {
-  background: var(--bg-raised);
-  box-shadow:
-    0 0 0 1px var(--border-subtle),
-    var(--shadow-1);
+  background: var(--bg-active);
 }
 .sb-row-main {
   display: flex;
@@ -352,6 +349,7 @@
 .sb-row[data-selected="true"] .sb-row-main,
 .sb-row[data-status="needs_you"] .sb-row-main {
   color: var(--text);
+  font-weight: var(--fw-medium);
 }
 .sb-row-title {
   flex: 1;
@@ -418,6 +416,13 @@
   justify-content: center;
   width: var(--icon-md);
   height: var(--icon-md);
+}
+.sb-dot-hollow {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--text-3);
+  opacity: 0.65;
 }
 .sb-dot-mark {
   display: block;
@@ -522,7 +527,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1-5) var(--space-2);
+  padding: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
 }
 .sb-settings {
   display: flex;

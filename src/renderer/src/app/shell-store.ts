@@ -6,6 +6,8 @@ import { createStore, useStoreValue } from "../store/create-store.ts";
 
 export const defaultSidebarWidth = 240;
 export const sidebarWidthRange = [200, 360] as const;
+export const defaultChatWidth = 820;
+export const chatWidthRange = limits.chatWidthRange;
 
 interface ShellUiState extends ShellState {
   drawerOpen: boolean;
@@ -16,6 +18,7 @@ const shellStore = createStore<ShellUiState>({
   sidebarCollapsed: false,
   terminalHeight: defaultTerminalHeight,
   historyOrder: "folder",
+  chatWidth: 0,
   drawerOpen: false,
 });
 
@@ -42,6 +45,15 @@ export function commitSidebarWidth(width: number): void {
   const sidebarWidth = clampSidebarWidth(width);
   update({ sidebarWidth });
   persist({ sidebarWidth });
+}
+export function commitChatWidth(width: number): void {
+  const chatWidth = width <= 0 ? 0 : clampChatWidth(width);
+  update({ chatWidth });
+  persist({ chatWidth });
+}
+
+export function clampChatWidth(width: number): number {
+  return Math.round(Math.min(chatWidthRange[1], Math.max(chatWidthRange[0], width)));
 }
 
 /** 存储里只夹到合法范围；"不超过主区 70%" 取决于当时的窗口高度，由面板渲染时再夹。 */
