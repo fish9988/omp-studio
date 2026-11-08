@@ -3222,92 +3222,173 @@
   background: transparent;
   box-shadow: none;
 }
-/* ───────── 聊天交付文件卡片（SVG / HTML / Markdown / 写入文件一键在右侧预览面板打开并渲染） ───────── */
+/* ───────── 聊天文件变更与交付行（1:1 复刻 dsh-claude-style chat-files.css + 内联 Diff 卡片） ───────── */
 .tsp-deliverables {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  --dsh-diff-add: rgb(1, 162, 65);
+  --dsh-diff-del: rgb(186, 39, 35);
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  overflow: hidden;
 }
-.tsp-deliverable-card {
+:root[data-theme-mode="dark"] .tsp-deliverables {
+  --dsh-diff-add: rgb(65, 201, 119);
+  --dsh-diff-del: rgb(250, 66, 62);
+}
+.tsp-dsh-file {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tsp-dsh-file + .tsp-dsh-file {
+  border-top: 0.5px solid var(--border);
+}
+.tsp-dsh-file-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2-5);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-raised);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
+  min-height: 36px;
+  padding: 6px 12px;
   cursor: pointer;
-  transition:
-    border-color var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+  user-select: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
-.tsp-deliverable-card:hover {
-  border-color: var(--accent);
+.tsp-dsh-file-row:hover {
   background: var(--bg-hover);
-  box-shadow: var(--shadow-1);
 }
-.tsp-deliverable-badge {
+.tsp-dsh-file-leading {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  height: 26px;
-  padding: 0 var(--space-1-5);
-  border-radius: var(--radius-xs);
-  background: var(--bg-sunken);
-  color: var(--text-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-strong);
-}
-.tsp-deliverable-badge[data-badge="SVG"] {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
-}
-.tsp-deliverable-badge[data-badge="HTML"] {
-  background: color-mix(in srgb, var(--syn-func) 14%, transparent);
-  color: var(--syn-func);
-}
-.tsp-deliverable-badge[data-badge="MD"] {
-  background: color-mix(in srgb, var(--diff-add-fg) 14%, transparent);
-  color: var(--diff-add-fg);
-}
-.tsp-deliverable-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.tsp-deliverable-name {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tsp-deliverable-sub {
-  font-size: var(--fs-2xs);
+  margin-right: 8px;
   color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.tsp-deliverable-open {
+.tsp-dsh-file-title {
   flex: none;
-  color: var(--text-3);
-  display: inline-flex;
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 400;
+  color: var(--text-2);
   transition: color var(--dur-fast) var(--ease-out);
 }
-.tsp-deliverable-card:hover .tsp-deliverable-open {
-  color: var(--accent);
+.tsp-dsh-file-row:hover .tsp-dsh-file-title {
+  color: var(--text);
+}
+.tsp-dsh-file-sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  border-radius: 1px;
+  margin: 0 8px;
+  background: var(--text-3);
+}
+.tsp-dsh-file-link {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--text-2);
+  text-align: left;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--text-3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tsp-dsh-file-row:hover .tsp-dsh-file-link,
+.tsp-dsh-file-link:hover {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}
+.tsp-dsh-file-suffix {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: 10px;
+  white-space: nowrap;
+}
+.tsp-dsh-file-stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(0.5px);
+}
+.tsp-dsh-file-add {
+  color: var(--dsh-diff-add);
+}
+.tsp-dsh-file-del {
+  color: var(--dsh-diff-del);
+}
+.tsp-dsh-file-tail {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tsp-dsh-file-inspect {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-app);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.tsp-dsh-file:hover .tsp-dsh-file-inspect,
+.tsp-dsh-file-inspect:focus-visible {
+  opacity: 1;
+}
+.tsp-dsh-file-inspect:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tsp-dsh-file-chev {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tsp-dsh-file-chev[data-open] {
+  transform: rotate(0deg);
+}
+.tsp-dsh-file-body {
+  border-top: 0.5px solid var(--border);
+  background: var(--bg-tool);
+  max-height: min(320px, 42vh);
+  overflow-y: auto;
+}
+.tsp-dsh-file-body:hover::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+.tsp-dsh-file-body .tsp-code-head {
+  display: none;
 }
 /* /jobs 弹窗（omp.overlay.jobs）照 studio 自己的对话框排（2026-10-25）：标题栏、左边作业列表（侧栏底色、整列高）、
    右边详情自己滚动、底栏（摘要 + Close）钉在最下面；卡片高度固定，切作业时不跳。详情里命令 / 事实 / 进度 / 输出

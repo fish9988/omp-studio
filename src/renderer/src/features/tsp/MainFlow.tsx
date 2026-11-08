@@ -5,7 +5,7 @@
 // 多出的收进和工具输出一样的"N more lines"。
 import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
-import type { DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
+import type { DocNode, DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
 import { useShellValue } from "../../app/shell-store.ts";
 import { ChevronDown, External, FileIcon } from "../../icons.tsx";
@@ -24,12 +24,14 @@ interface DeliverableItem {
   key: string;
   name: string;
   badge: "SVG" | "HTML" | "MD" | "FILE";
-  subtitleZh: string;
-  subtitleEn: string;
+  operation: "write" | "edit" | "read";
+  added: number;
+  removed: number;
+  bodyNodeId?: string;
+  bodyKind?: "diff" | "code";
   filePath?: string;
   artifact?: InlineArtifact;
 }
-
 type MainSegment =
   | { kind: "item"; id: string; deliverables: readonly DeliverableItem[] }
   | {
@@ -123,42 +125,76 @@ function cleanDeliverablePath(raw: string): string {
     .trim();
 }
 
-function fileBadge(filePath: string): {
-  badge: DeliverableItem["badge"];
-  subtitleZh: string;
-  subtitleEn: string;
-} {
+function fileBadge(filePath: string): DeliverableItem["badge"] {
   const lower = filePath.toLowerCase();
-  if (lower.endsWith(".svg")) {
-    return {
-      badge: "SVG",
-      subtitleZh: "SVG 矢量图形 · 点击在侧栏渲染预览",
-      subtitleEn: "SVG vector graphic · Click to preview",
-    };
-  }
-  if (lower.endsWith(".html") || lower.endsWith(".htm")) {
-    return {
-      badge: "HTML",
-      subtitleZh: "HTML 网页文档 · 点击在侧栏渲染预览",
-      subtitleEn: "HTML document · Click to preview",
-    };
-  }
-  if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
-    return {
-      badge: "MD",
-      subtitleZh: "Markdown 文档 · 点击在侧栏渲染预览",
-      subtitleEn: "Markdown document · Click to preview",
-    };
-  }
-  return {
-    badge: "FILE",
-    subtitleZh: "已交付文件 · 点击在侧栏打开预览",
-    subtitleEn: "Deliverable file · Click to preview",
-  };
+  if (lower.endsWith(".svg")) return "SVG";
+  if (lower.endsWith(".html") || lower.endsWith(".htm")) return "HTML";
+  if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "MD";
+  return "FILE";
 }
 
 function isDeliverableDocPath(filePath: string): boolean {
   return /\.(svg|html?|md|markdown)$/i.test(filePath);
+}
+
+function parseToolDiffStats(
+  surface: DocSurface,
+  node: DocNode,
+): {
+  added: number;
+  removed: number;
+  bodyNodeId?: string;
+  bodyKind?: "diff" | "code";
+} {
+  let added = 0;
+  let removed = 0;
+  let bodyNodeId: string | undefined;
+  let bodyKind: "diff" | "code" | undefined;
+
+  if (Array.isArray(node.p["meta"])) {
+    for (const entry of node.p["meta"]) {
+      if (typeof entry !== "string") continue;
+      const addMatch = /\+(\d+)/.exec(entry);
+      const delMatch = /[-−](\d+)/.exec(entry);
+      const linesMatch = /^(\d+)\s+lines?$/i.exec(entry.trim());
+      if (addMatch) added += Number(addMatch[1]);
+      if (delMatch) removed += Number(delMatch[1]);
+      if (linesMatch && node.p["name"] === "write") added += Number(linesMatch[1]);
+    }
+  }
+
+  for (const cid of node.c) {
+    const child = surface.nodes.get(cid);
+    if (!child) continue;
+    if (child.k === "diff") {
+      bodyNodeId = cid;
+      bodyKind = "diff";
+      if (added === 0 && removed === 0 && Array.isArray(child.p["hunks"])) {
+        for (const hunk of child.p["hunks"] as { lines?: unknown }[]) {
+          if (!Array.isArray(hunk?.lines)) continue;
+          for (const line of hunk.lines) {
+            if (typeof line !== "string") continue;
+            if (line.startsWith("+") && !line.startsWith("+++")) added += 1;
+            else if (line.startsWith("-") && !line.startsWith("---")) removed += 1;
+          }
+        }
+      }
+      break;
+    }
+    if (child.k === "code") {
+      bodyNodeId = cid;
+      bodyKind = "code";
+      if (added === 0 && node.p["name"] === "write" && typeof child.p["text"] === "string") {
+        added = child.p["text"].split("\n").length;
+      }
+    }
+  }
+  return {
+    added,
+    removed,
+    ...(bodyNodeId !== undefined ? { bodyNodeId } : {}),
+    ...(bodyKind !== undefined ? { bodyKind } : {}),
+  };
 }
 
 function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableItem[] {
@@ -166,39 +202,52 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
   if (!node) return [];
   const items: DeliverableItem[] = [];
 
-  const pushFile = (rawPath: string) => {
+  const pushFile = (
+    rawPath: string,
+    operation: "write" | "edit" | "read",
+    stats: { added: number; removed: number; bodyNodeId?: string; bodyKind?: "diff" | "code" },
+  ) => {
     const cleaned = cleanDeliverablePath(rawPath);
-    if (cleaned === "" || !isDeliverableDocPath(cleaned)) return;
+    if (cleaned === "") return;
+    // read 工具仅提取可预览交付文档（.svg / .html / .md），而 write / edit 提取所有被创建或修改的文件以展示 DSH 文件行与 Diff
+    if (operation === "read" && !isDeliverableDocPath(cleaned)) return;
     const parts = cleaned.split(/[\\/]/).filter(Boolean);
     const name = parts[parts.length - 1] ?? cleaned;
     const rel = /^[a-zA-Z]:[\\/]/.test(cleaned) || cleaned.startsWith("/") ? name : cleaned;
-    const meta = fileBadge(rel);
     items.push({
       key: `file:${rel}`,
-      name,
-      badge: meta.badge,
-      subtitleZh: meta.subtitleZh,
-      subtitleEn: meta.subtitleEn,
+      name: rel,
+      badge: fileBadge(rel),
+      operation,
+      added: stats.added,
+      removed: stats.removed,
+      ...(stats.bodyNodeId !== undefined ? { bodyNodeId: stats.bodyNodeId } : {}),
+      ...(stats.bodyKind !== undefined ? { bodyKind: stats.bodyKind } : {}),
       filePath: rel,
     });
   };
 
-  // 1. write / edit / read 工具涉及的 .svg / .html / .md 文档
+  // 1. write / edit 工具修改或创建的任意文件（附带 +M -N 与内联 Diff），以及 read 涉及的交付文档
   if (node.k === "tool" && node.p["status"] === "done") {
     const toolName = node.p["name"];
     if (toolName === "write" || toolName === "edit" || toolName === "read") {
-      if (typeof node.p["target"] === "string") pushFile(node.p["target"]);
-      else if (typeof node.p["href"] === "string") pushFile(node.p["href"]);
+      const op: "write" | "edit" | "read" = toolName === "write" ? "write" : toolName === "edit" ? "edit" : "read";
+      const stats = parseToolDiffStats(surface, node);
+      if (typeof node.p["target"] === "string" && node.p["targetKind"] === "path") {
+        pushFile(node.p["target"], op, stats);
+      } else if (typeof node.p["href"] === "string") {
+        pushFile(node.p["href"], op, stats);
+      }
       for (const cid of node.c) {
         const child = surface.nodes.get(cid);
         if (child?.p["role"] === "omp.tool.file") {
-          if (typeof child.p["title"] === "string") pushFile(child.p["title"]);
-          else if (typeof child.p["href"] === "string") pushFile(child.p["href"]);
+          if (typeof child.p["title"] === "string") pushFile(child.p["title"], op, stats);
+          else if (typeof child.p["href"] === "string") pushFile(child.p["href"], op, stats);
           for (const gcid of child.c) {
             const gc = surface.nodes.get(gcid);
-            if (typeof gc?.p["title"] === "string") pushFile(gc.p["title"]);
-            else if (typeof gc?.p["href"] === "string") pushFile(gc.p["href"]);
-            else if (typeof gc?.p["text"] === "string") pushFile(gc.p["text"]);
+            if (typeof gc?.p["title"] === "string") pushFile(gc.p["title"], op, stats);
+            else if (typeof gc?.p["href"] === "string") pushFile(gc.p["href"], op, stats);
+            else if (typeof gc?.p["text"] === "string") pushFile(gc.p["text"], op, stats);
           }
         }
       }
@@ -225,14 +274,14 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
               : ext === "svg"
                 ? `diagram-${blockIdx}.svg`
                 : `document-${blockIdx}.md`;
-          const meta = fileBadge(name);
           const artifactId = `${id}-${blockIdx}`;
           items.push({
             key: `art:${artifactId}`,
             name,
-            badge: meta.badge,
-            subtitleZh: meta.subtitleZh,
-            subtitleEn: meta.subtitleEn,
+            badge: fileBadge(name),
+            operation: "write",
+            added: body.split("\n").length,
+            removed: 0,
             artifact: { id: artifactId, name, ext, content: body },
           });
         }
@@ -245,7 +294,32 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
 function dedupeDeliverables(list: readonly DeliverableItem[]): readonly DeliverableItem[] {
   if (list.length === 0) return EMPTY_DELIVERABLES;
   const map = new Map<string, DeliverableItem>();
-  for (const item of list) map.set(item.key, item);
+  for (const item of list) {
+    const prev = map.get(item.key);
+    if (!prev) {
+      map.set(item.key, item);
+    } else {
+      // 同一文件的多次操作合并（对齐 dsh-claude-style file-row-merge.ts）：累加 +M -N，保留最新 Diff 节点与最高写操作级别
+      const nextOp =
+        item.operation === "write" || prev.operation === "write"
+          ? "write"
+          : item.operation === "edit" || prev.operation === "edit"
+            ? "edit"
+            : "read";
+      map.set(item.key, {
+        ...prev,
+        ...item,
+        operation: nextOp,
+        added: prev.added + item.added,
+        removed: prev.removed + item.removed,
+        ...(item.bodyNodeId !== undefined
+          ? { bodyNodeId: item.bodyNodeId, bodyKind: item.bodyKind }
+          : prev.bodyNodeId !== undefined
+            ? { bodyNodeId: prev.bodyNodeId, bodyKind: prev.bodyKind }
+            : {}),
+      });
+    }
+  }
   return [...map.values()];
 }
 
@@ -415,34 +489,111 @@ function StatusLine({ note }: { note: StatusNote }) {
   );
 }
 
-function DeliverableShelf({ taskId, items }: { taskId: TaskId; items: readonly DeliverableItem[] }) {
-  if (items.length === 0) return null;
+function DshFileItem({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) {
   const zh = currentLocale() === "zh-CN";
+  // 如果是 edit 修改文件且带有 diff 节点，默认展开显示内联 DIFF；写入新文件或读取文档默认折叠成精致单行
+  const hasBody = item.bodyNodeId !== undefined;
+  const [expanded, setExpanded] = useState(item.operation === "edit" && item.bodyKind === "diff");
+
+  const opLabel =
+    item.operation === "write"
+      ? zh
+        ? "写入文件"
+        : "Write"
+      : item.operation === "edit"
+        ? zh
+          ? "编辑文件"
+          : "Edit"
+        : zh
+          ? "读取文档"
+          : "Read";
+
+  const openInSidebar = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (item.filePath !== undefined) openFilePreview(ctx.taskId, item.filePath);
+    else if (item.artifact !== undefined) openInlineArtifact(ctx.taskId, item.artifact);
+  };
+
+  return (
+    <div
+      className="tsp-dsh-file"
+      data-operation={item.operation}
+      data-badge={item.badge}
+      data-expanded={expanded && hasBody ? "" : undefined}
+      data-testid="tsp-deliverable-card"
+      onClick={() => {
+        if (hasBody) setExpanded((prev) => !prev);
+        else if (item.filePath !== undefined) openFilePreview(ctx.taskId, item.filePath);
+        else if (item.artifact !== undefined) openInlineArtifact(ctx.taskId, item.artifact);
+      }}
+    >
+      <div className="tsp-dsh-file-row">
+        <span className="tsp-dsh-file-leading" aria-hidden="true">
+          {item.operation === "read" ? (
+            <FileIcon size={14} />
+          ) : (
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M11.5 2.5a1.77 1.77 0 0 1 2.5 2.5L5.5 13.5 2 14l.5-3.5L11.5 2.5z" />
+            </svg>
+          )}
+        </span>
+        <span className="tsp-dsh-file-title">{opLabel}</span>
+        <span className="tsp-dsh-file-sep" aria-hidden="true" />
+        <button
+          type="button"
+          className="tsp-dsh-file-link"
+          onClick={openInSidebar}
+          title={zh ? "点击在右侧面板打开预览" : "Click to preview in sidebar"}
+        >
+          {item.name}
+        </button>
+        {(item.added > 0 || item.removed > 0) && (
+          <span className="tsp-dsh-file-suffix" data-testid="tsp-deliverable-diff-stats">
+            {item.added > 0 && <span className="tsp-dsh-file-stat tsp-dsh-file-add">+{item.added}</span>}
+            {item.removed > 0 && <span className="tsp-dsh-file-stat tsp-dsh-file-del">-{item.removed}</span>}
+          </span>
+        )}
+        <span className="tsp-dsh-file-tail">
+          <button
+            type="button"
+            className="tsp-dsh-file-inspect"
+            onClick={openInSidebar}
+            title={zh ? "在侧栏预览" : "Preview in sidebar"}
+          >
+            <External size={12} />
+            <span>{zh ? "预览" : "Preview"}</span>
+          </button>
+          {hasBody && (
+            <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined} aria-hidden="true">
+              <ChevronDown />
+            </span>
+          )}
+        </span>
+      </div>
+      {hasBody && expanded && item.bodyNodeId !== undefined && (
+        <div className="tsp-dsh-file-body" onClick={(e) => e.stopPropagation()} data-testid="tsp-deliverable-diff-body">
+          <TspNode id={item.bodyNodeId} ctx={ctx} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeliverableShelf({ ctx, items }: { ctx: TspContext; items: readonly DeliverableItem[] }) {
+  if (items.length === 0) return null;
   return (
     <div className="tsp-deliverables" data-testid="tsp-deliverables">
       {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className="tsp-deliverable-card"
-          data-badge={item.badge}
-          data-testid="tsp-deliverable-card"
-          onClick={() => {
-            if (item.filePath !== undefined) openFilePreview(taskId, item.filePath);
-            else if (item.artifact !== undefined) openInlineArtifact(taskId, item.artifact);
-          }}
-        >
-          <span className="tsp-deliverable-badge" data-badge={item.badge}>
-            {item.badge === "FILE" ? <FileIcon size={14} /> : item.badge}
-          </span>
-          <span className="tsp-deliverable-info">
-            <span className="tsp-deliverable-name">{item.name}</span>
-            <span className="tsp-deliverable-sub">{zh ? item.subtitleZh : item.subtitleEn}</span>
-          </span>
-          <span className="tsp-deliverable-open" aria-hidden="true">
-            <External size={14} />
-          </span>
-        </button>
+        <DshFileItem key={item.key} item={item} ctx={ctx} />
       ))}
     </div>
   );
@@ -543,7 +694,7 @@ function ProcessGroup({
           </Fragment>
         ))}
       </div>
-      <DeliverableShelf taskId={ctx.taskId} items={deliverables} />
+      <DeliverableShelf ctx={ctx} items={deliverables} />
     </div>
   );
 }
@@ -584,7 +735,7 @@ export const MainFlow = memo(function MainFlow({ taskId, sf, ctx }: { taskId: Ta
     } else {
       out.push(<TspNode key={seg.id} id={seg.id} ctx={ctx} />);
       if (seg.deliverables.length > 0) {
-        out.push(<DeliverableShelf key={`dl-${seg.id}`} taskId={taskId} items={seg.deliverables} />);
+        out.push(<DeliverableShelf key={`dl-${seg.id}`} ctx={ctx} items={seg.deliverables} />);
       }
       (after.get(seg.id) ?? []).forEach((note, i) => out.push(<StatusLine key={`s-${seg.id}-${i}`} note={note} />));
     }

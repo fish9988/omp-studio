@@ -437,8 +437,14 @@
 .sb-dot-waiting {
   color: var(--st-waiting);
 }
-.sb-dot-done {
-  color: var(--st-done);
+/* 对齐 dsh-claude-style（sidebar-status.css）：常态空闲/已完成的会话不画绿圈对勾或空心点，仅在运行中/待介入/报错/中断时显示状态图标 */
+.sb-dot-done,
+.sb-dot-none {
+  width: 0;
+  margin-right: calc(var(--space-2) * -1);
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 .sb-dot-error {
   color: var(--st-error);
