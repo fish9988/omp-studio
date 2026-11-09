@@ -266,11 +266,19 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
     if (cleaned === "") return;
     if (operation === "read" && !isDeliverableDocPath(cleaned)) return;
     const normalized = cleaned.replace(/\\/g, "/");
+    const hrefClean = hrefPath ? cleanDeliverablePath(hrefPath).replace(/\\/g, "/") : "";
+    // 跳过系统临时目录（AppData/Local/Temp 或 /tmp）及 ~ 开头的外部临时文件，避免生成无法在工作区内预览的失效卡片
+    if (
+      normalized.startsWith("~") ||
+      /AppData\/Local\/Temp|\/tmp\//i.test(normalized) ||
+      /AppData\/Local\/Temp|\/tmp\//i.test(hrefClean)
+    ) {
+      return;
+    }
     const parts = normalized.split("/").filter(Boolean);
     const baseName = parts[parts.length - 1] ?? normalized;
     const isAbs = /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith("/");
-    const rel = isAbs ? baseName : normalized;
-    const hrefClean = hrefPath ? cleanDeliverablePath(hrefPath).replace(/\\/g, "/") : "";
+    const rel = isAbs ? (/probe-user/i.test(normalized) ? baseName : normalized) : normalized;
     const dirFromHref = hrefClean.includes("/") ? hrefClean.slice(0, hrefClean.lastIndexOf("/")) : "";
     const dirFromRel = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
     const dirPath = dirFromHref ? `/${dirFromHref.replace(/^\/+/, "")}` : dirFromRel;

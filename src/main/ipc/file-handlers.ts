@@ -2,6 +2,7 @@
 // 任务可以多选一个根：`root` 下标（0 / 缺省 = 任务 cwd，n = 第 n 个 `/add-dir` 额外工作区目录，路径取自主进程记的 omp 输出，见 task-roots.ts）。
 // `@` 补全只在任务 cwd 里找（目前不扫额外目录）。补全只返回相对路径，结果条数有上限；树一次只列一层。
 import { stat } from "node:fs/promises";
+import path from "node:path";
 import type { HandlerGroup, ProjectFilesTarget } from "../../shared/ipc.ts";
 import { listDirectory } from "../files/list-directory.ts";
 import { ProjectFileIndex, parseFileQuery } from "../files/project-files.ts";
@@ -39,8 +40,29 @@ export async function targetCwd(target: ProjectFilesTarget): Promise<string> {
 
 export const fileHandlers: HandlerGroup<"listProjectFiles" | "readPreviewFile" | "listDirectory"> = {
   async readPreviewFile(target, relPath) {
-    const cwd = await targetCwd(parseFilesTarget(target));
-    return readPreviewFile(cwd, parseString(relPath, "relPath", 1024));
+    const parsed = parseFilesTarget(target);
+    const cwd = await targetCwd(parsed);
+    const raw = parseString(relPath, "relPath", 1024);
+    const direct = await readPreviewFile(cwd, raw);
+    if (direct.kind !== "missing") return direct;
+    // 聊天正文里的行内文件胶囊或工具行常只写文件名（如 `tokens.css`）或子仓库相对路径（如 `src/renderer/styles/tokens.css`）；
+    // 当直接相对路径不存在时，在当前工作区目录树内按路径后缀定位唯一匹配文件。
+    if (!path.isAbsolute(raw) && !raw.includes("..") && !raw.startsWith("~")) {
+      const wanted = raw
+        .replace(/\\/g, "/")
+        .replace(/^\.?\//, "")
+        .toLowerCase();
+      const base = path.posix.basename(wanted);
+      if (base !== "") {
+        const candidates = await index.search(cwd, base).catch(() => [] as string[]);
+        const match = candidates.find((c) => {
+          const norm = c.replace(/\\/g, "/").toLowerCase();
+          return norm === wanted || norm.endsWith(`/${wanted}`);
+        });
+        if (match !== undefined) return readPreviewFile(cwd, match);
+      }
+    }
+    return direct;
   },
   async listDirectory(target, relDir) {
     const cwd = await targetCwd(parseFilesTarget(target));
