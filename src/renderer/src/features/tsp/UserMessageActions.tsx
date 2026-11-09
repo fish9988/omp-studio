@@ -24,7 +24,7 @@ async function resolveUserEntryId(taskId: TaskId, sf: string, cardId: string): P
   return idx !== null ? (nodes[idx]?.entryId ?? null) : null;
 }
 
-function readUserCardText(taskId: TaskId, sf: string, cardId: string): string {
+export function readUserCardText(taskId: TaskId, sf: string, cardId: string): string {
   const card = peekTspNode(taskId, sf, cardId);
   if (!card) return "";
   for (const cid of card.c) {
@@ -41,6 +41,8 @@ export function UserMessageActions({
   sf,
   cardId,
   editing,
+  rawView = false,
+  onToggleRawView,
   onStartEdit,
   onCloseEdit,
 }: {
@@ -48,6 +50,8 @@ export function UserMessageActions({
   sf: string;
   cardId: string;
   editing: boolean;
+  rawView?: boolean | undefined;
+  onToggleRawView?: (() => void) | undefined;
   onStartEdit(initialText: string): void;
   onCloseEdit(): void;
 }) {
@@ -109,6 +113,49 @@ export function UserMessageActions({
 
   return (
     <div className="tsp-user-actions" data-testid="user-message-actions">
+      {onToggleRawView !== undefined && (
+        <button
+          type="button"
+          className="tsp-user-action-btn"
+          aria-pressed={rawView}
+          title={
+            rawView
+              ? zh
+                ? "切换为 Markdown 渲染视图"
+                : "Show rendered Markdown view"
+              : zh
+                ? "查看原始纯文本（保留标签与符号）"
+                : "Show raw plain text"
+          }
+          aria-label={rawView ? (zh ? "切换为渲染视图" : "Rendered view") : zh ? "查看原文" : "Raw text"}
+          onClick={onToggleRawView}
+          data-testid="user-msg-raw-toggle"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {rawView ? (
+              <>
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </>
+            ) : (
+              <>
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </>
+            )}
+          </svg>
+        </button>
+      )}
       <button
         type="button"
         className="tsp-user-action-btn"

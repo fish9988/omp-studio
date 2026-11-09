@@ -18,7 +18,8 @@ import type { TspContext } from "./node-props.ts";
 import { useSessionExtras } from "./session-extras-store.ts";
 import { cleanGlyphs } from "./span-tokens.ts";
 import { TspNode } from "./TspChildren.tsx";
-import { useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
+import { peekTspNode, useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
+import { setNodesFolded } from "./use-fold.ts";
 const STATUS_NOTE_LINES = 2;
 
 type DeliverableCategory = "markdown" | "html" | "vector" | "image" | "pdf" | "data" | "style" | "code";
@@ -724,9 +725,23 @@ function AntigravityFileRow({ item, ctx }: { item: DeliverableItem; ctx: TspCont
           <span className="tsp-dsh-file-stat tsp-dsh-file-del">-{item.removed}</span>
         </span>
         {hasBody && (
-          <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined} aria-hidden="true">
-            <ChevronDown />
-          </span>
+          <>
+            <button
+              type="button"
+              className="tsp-ag-diff-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+              title={zh ? "展开/收起内联改动对比 (Diff)" : "Toggle inline Diff"}
+              data-testid="tsp-ag-file-diff-btn"
+            >
+              {zh ? "对比" : "Diff"}
+            </button>
+            <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined} aria-hidden="true">
+              <ChevronDown />
+            </span>
+          </>
         )}
       </div>
       {hasBody && expanded && item.bodyNodeId !== undefined && (
@@ -933,6 +948,165 @@ function DeliverableShelf({ ctx, items }: { ctx: TspContext; items: readonly Del
   );
 }
 
+type ProcessActivityKind = "read" | "search" | "edit" | "command" | "web" | "subagent" | "plan";
+
+function classifyToolActivity(name: string): ProcessActivityKind | null {
+  const n = name.toLowerCase();
+  if (n === "read" || n === "read_file" || n === "view") return "read";
+  if (n === "grep" || n === "glob" || n === "find" || n === "ls" || n === "search") return "search";
+  if (n === "edit" || n === "write" || n === "ast_edit" || n === "apply_patch") return "edit";
+  if (n === "bash" || n === "eval" || n === "shell") return "command";
+  if (n === "web_search" || n === "fetch" || n === "browse") return "web";
+  if (n === "task" || n === "subagent") return "subagent";
+  if (n === "todo") return "plan";
+  return null;
+}
+
+function activityLabel(kind: ProcessActivityKind, zh: boolean): string {
+  switch (kind) {
+    case "read":
+      return zh ? "读取" : "Read";
+    case "search":
+      return zh ? "搜索" : "Search";
+    case "edit":
+      return zh ? "编辑" : "Edit";
+    case "command":
+      return zh ? "命令" : "Command";
+    case "web":
+      return zh ? "网络" : "Web";
+    case "subagent":
+      return zh ? "子代理" : "Subagent";
+    case "plan":
+      return zh ? "待办" : "Plan";
+  }
+}
+
+type ProcessRenderItem =
+  | { kind: "single"; id: string }
+  | {
+      kind: "explore-group";
+      key: string;
+      ids: readonly string[];
+      reads: number;
+      searches: number;
+      previewNames: string;
+    };
+
+function foldExplorationIds(
+  taskId: TaskId,
+  sf: string,
+  ids: readonly string[],
+  enabled: boolean,
+): { items: readonly ProcessRenderItem[]; hasExploreRuns: boolean } {
+  const isExploreTool = (id: string): "read" | "search" | null => {
+    const node = peekTspNode(taskId, sf, id);
+    if (!node || node.k !== "tool" || node.p["status"] !== "done") return null;
+    const name = typeof node.p["name"] === "string" ? node.p["name"].toLowerCase() : "";
+    if (name === "read" || name === "read_file") return "read";
+    if (name === "grep" || name === "glob" || name === "find" || name === "ls") return "search";
+    return null;
+  };
+  const isThought = (id: string): boolean => {
+    const node = peekTspNode(taskId, sf, id);
+    const role = node?.p["role"];
+    return typeof role === "string" && role.startsWith("omp.thinking");
+  };
+
+  let hasExploreRuns = false;
+  const out: ProcessRenderItem[] = [];
+  let i = 0;
+  while (i < ids.length) {
+    const firstKind = isExploreTool(ids[i]!);
+    if (firstKind === null) {
+      out.push({ kind: "single", id: ids[i]! });
+      i += 1;
+      continue;
+    }
+    let j = i;
+    let lastToolIdx = i;
+    while (j < ids.length && (isExploreTool(ids[j]!) !== null || isThought(ids[j]!))) {
+      if (isExploreTool(ids[j]!) !== null) lastToolIdx = j;
+      j += 1;
+    }
+    const runIds = ids.slice(i, lastToolIdx + 1);
+    let reads = 0;
+    let searches = 0;
+    const names: string[] = [];
+    for (const rid of runIds) {
+      const k = isExploreTool(rid);
+      if (k === "read") {
+        reads += 1;
+        const node = peekTspNode(taskId, sf, rid);
+        const target = typeof node?.p["target"] === "string" ? node.p["target"] : "";
+        const clean = target.replace(/(?::\d+(?:[-:]\d+)?|\s+\(\d+.*\))$/, "").trim();
+        const parts = clean.split(/[\\/]/).filter(Boolean);
+        const base = parts[parts.length - 1];
+        if (base && !names.includes(base)) names.push(base);
+      } else if (k === "search") {
+        searches += 1;
+      }
+    }
+    if (reads + searches >= 2) {
+      hasExploreRuns = true;
+      if (enabled) {
+        const previewNames = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+        out.push({
+          kind: "explore-group",
+          key: `exp-${runIds[0]}`,
+          ids: runIds,
+          reads,
+          searches,
+          previewNames,
+        });
+        i = lastToolIdx + 1;
+        continue;
+      }
+    }
+    out.push({ kind: "single", id: ids[i]! });
+    i += 1;
+  }
+  return { items: out, hasExploreRuns };
+}
+
+function ExplorationGroupRow({
+  item,
+  after,
+  ctx,
+}: {
+  item: Extract<ProcessRenderItem, { kind: "explore-group" }>;
+  after: ReadonlyMap<string, StatusNote[]>;
+  ctx: TspContext;
+}) {
+  const [open, setOpen] = useState(false);
+  const zh = currentLocale() === "zh-CN";
+  const parts: string[] = [];
+  if (item.reads > 0) parts.push(zh ? `读取 ${item.reads} 个文件` : `Read ${item.reads} files`);
+  if (item.searches > 0) parts.push(zh ? `搜索 ${item.searches} 次` : `${item.searches} searches`);
+  return (
+    <div className="tsp-explore-group" data-open={open || undefined} data-testid="tsp-explore-group">
+      <button type="button" className="tsp-explore-group-head" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className="tsp-explore-group-title">{parts.join(zh ? " · " : " · ")}</span>
+        {item.previewNames !== "" && <span className="tsp-explore-group-preview">{item.previewNames}</span>}
+        <span className="tsp-chev" data-collapsed={!open || undefined}>
+          <ChevronDown size={12} />
+        </span>
+      </button>
+      {open && (
+        <div className="tsp-explore-group-children">
+          {item.ids.map((id) => (
+            <Fragment key={id}>
+              <TspNode id={id} ctx={ctx} />
+              {(after.get(id) ?? []).map((note, i) => (
+                <StatusLine key={`s-${id}-${i}`} note={note} />
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProcessGroup({
   ids,
   thoughts,
@@ -955,9 +1129,12 @@ function ProcessGroup({
   ctx: TspContext;
 }) {
   const [folded, setFolded] = useState(false);
+  const [foldExplore, setFoldExplore] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const layout = useShellValue("processRows") ?? "column";
+  const zh = currentLocale() === "zh-CN";
   const label = formatProcessSummary(thoughts, tools);
   const extraTurnMs = useSessionExtras(ctx.taskId, (extras) =>
     turnIndex >= 0 ? (extras.turns[turnIndex]?.elapsedMs ?? 0) : 0,
@@ -965,6 +1142,44 @@ function ProcessGroup({
   const effectiveMs = durationMs > 0 ? durationMs : extraTurnMs;
   const durationText =
     effectiveMs >= 100 ? formatElapsed(effectiveMs, effectiveMs >= 1000 ? "seconds" : "short") : null;
+
+  const activitiesText = (() => {
+    const counts = new Map<ProcessActivityKind, number>();
+    for (const id of ids) {
+      const node = peekTspNode(ctx.taskId, ctx.sf, id);
+      if (node?.k === "tool" && typeof node.p["name"] === "string") {
+        const k = classifyToolActivity(node.p["name"]);
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k]) => activityLabel(k, zh))
+      .join(" · ");
+  })();
+
+  const { items: renderItems, hasExploreRuns } = foldExplorationIds(ctx.taskId, ctx.sf, ids, foldExplore);
+
+  const onToggleAllDetails = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const nextExpanded = !detailsExpanded;
+    setDetailsExpanded(nextExpanded);
+    if (folded && nextExpanded) setFolded(false);
+    const targets: { node: DocNode; initialCollapsed: boolean }[] = [];
+    for (const id of ids) {
+      const node = peekTspNode(ctx.taskId, ctx.sf, id);
+      if (!node || node.p["collapsible"] !== true) continue;
+      const role = node.p["role"];
+      const isThinking = typeof role === "string" && role.startsWith("omp.thinking");
+      const headId = typeof node.p["head"] === "string" ? node.p["head"] : null;
+      const headNode = headId !== null ? peekTspNode(ctx.taskId, ctx.sf, headId) : null;
+      const thoughtDone = isThinking && headNode?.k === "text";
+      const initialCollapsed = node.p["collapsed"] === true || thoughtDone;
+      targets.push({ node, initialCollapsed });
+    }
+    setNodesFolded(ctx.taskId, ctx.sf, targets, !nextExpanded);
+  };
 
   useEffect(() => {
     if (folded || !stickRef.current) return;
@@ -974,29 +1189,65 @@ function ProcessGroup({
 
   return (
     <div className="tsp-process-group" data-layout={layout} data-testid="tsp-process-group">
-      <button
-        type="button"
-        className="tsp-process-summary"
-        data-running={running || undefined}
-        aria-expanded={!folded}
-        onClick={() => setFolded((f) => !f)}
-        data-testid="tsp-process-summary"
-      >
-        <span className="tsp-process-summary-text">{label}</span>
-        {durationText !== null && (
-          <>
-            <span className="tsp-process-summary-sep" aria-hidden="true">
-              ·
-            </span>
-            <span className="tsp-process-summary-time" data-testid="tsp-process-summary-time">
-              {durationText}
-            </span>
-          </>
+      <div className="tsp-process-head-row">
+        <button
+          type="button"
+          className="tsp-process-summary"
+          data-running={running || undefined}
+          aria-expanded={!folded}
+          onClick={() => setFolded((f) => !f)}
+          data-testid="tsp-process-summary"
+        >
+          <span className="tsp-process-summary-text">{label}</span>
+          {folded && activitiesText !== "" && (
+            <>
+              <span className="tsp-process-summary-sep" aria-hidden="true">
+                ·
+              </span>
+              <span className="tsp-process-summary-acts">{activitiesText}</span>
+            </>
+          )}
+          {durationText !== null && (
+            <>
+              <span className="tsp-process-summary-sep" aria-hidden="true">
+                ·
+              </span>
+              <span className="tsp-process-summary-time" data-testid="tsp-process-summary-time">
+                {durationText}
+              </span>
+            </>
+          )}
+          <span className="tsp-process-summary-chev" aria-hidden="true">
+            <ChevronDown />
+          </span>
+        </button>
+        {!folded && (
+          <div className="tsp-process-controls">
+            {hasExploreRuns && (
+              <button
+                type="button"
+                className="tsp-process-ctrl-btn"
+                aria-pressed={foldExplore}
+                onClick={() => setFoldExplore((v) => !v)}
+                title={zh ? "将连续的读取与搜索步骤聚合成单行摘要" : "Fold consecutive read/search steps"}
+                data-testid="tsp-process-fold-explore"
+              >
+                {zh ? (foldExplore ? "展开读取" : "聚合读取") : foldExplore ? "Unfold reads" : "Fold reads"}
+              </button>
+            )}
+            <button
+              type="button"
+              className="tsp-process-ctrl-btn"
+              aria-pressed={detailsExpanded}
+              onClick={onToggleAllDetails}
+              title={zh ? "一键展开或收起本轮所有思考与工具详情" : "Expand or collapse all step details"}
+              data-testid="tsp-process-bulk-toggle"
+            >
+              {zh ? (detailsExpanded ? "收起详情" : "展开详情") : detailsExpanded ? "Collapse all" : "Expand all"}
+            </button>
+          </div>
         )}
-        <span className="tsp-process-summary-chev" aria-hidden="true">
-          <ChevronDown />
-        </span>
-      </button>
+      </div>
       {!folded && (
         <div
           ref={bodyRef}
@@ -1007,14 +1258,18 @@ function ProcessGroup({
             stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
           }}
         >
-          {ids.map((id) => (
-            <Fragment key={id}>
-              <TspNode id={id} ctx={ctx} />
-              {(after.get(id) ?? []).map((note, i) => (
-                <StatusLine key={`s-${id}-${i}`} note={note} />
-              ))}
-            </Fragment>
-          ))}
+          {renderItems.map((item) =>
+            item.kind === "explore-group" ? (
+              <ExplorationGroupRow key={item.key} item={item} after={after} ctx={ctx} />
+            ) : (
+              <Fragment key={item.id}>
+                <TspNode id={item.id} ctx={ctx} />
+                {(after.get(item.id) ?? []).map((note, i) => (
+                  <StatusLine key={`s-${item.id}-${i}`} note={note} />
+                ))}
+              </Fragment>
+            ),
+          )}
         </div>
       )}
       <DeliverableShelf ctx={ctx} items={deliverables} />

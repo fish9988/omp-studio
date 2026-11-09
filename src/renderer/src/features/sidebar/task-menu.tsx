@@ -1,7 +1,7 @@
 // 任务菜单：侧栏任务行的 ⋯ / 右键和顶栏的 ⋯ 打开的是同一份（项一致、顺序一致）。
 // 第一组是任务本身（重命名、保持运行、会话信息、请求记录、分享链接），第二组是文件（工作目录、会话文件、复制、导出），最后是归档。
 import type { TFunction } from "../../../../shared/i18n/index.ts";
-import type { TaskId } from "../../../../shared/ipc.ts";
+import type { SessionSummary, TaskId } from "../../../../shared/ipc.ts";
 import { CopyIcon, External, FileIcon, Folder, Info, Pencil, Pin } from "../../icons.tsx";
 import { reportError } from "../../ui/errors.ts";
 import type { MenuEntry } from "../../ui/Menu.tsx";
@@ -10,7 +10,7 @@ import { exportConversationReporting } from "../composer/export-html.ts";
 import { openSessionInfo, openShareDialog } from "../session-info/session-info-store.ts";
 import { archiveWithUndo } from "./archive-store.ts";
 import { ArchiveIcon, ExportIcon, ProcessIcon } from "./icons.tsx";
-
+import { isItemPinned, toggleItemPinned } from "./sidebar-prefs-store.ts";
 export async function attempt(t: TFunction, action: () => Promise<void>): Promise<void> {
   try {
     await action();
@@ -19,11 +19,26 @@ export async function attempt(t: TFunction, action: () => Promise<void>): Promis
   }
 }
 
-async function copySession(t: TFunction, taskId: TaskId, pick: "sessionId" | "sessionFile"): Promise<void> {
+async function copySession(
+  t: TFunction,
+  taskId: TaskId,
+  pick: "sessionId" | "sessionFile" | "sessionRef",
+): Promise<void> {
   await attempt(t, async () => {
     const ref = await window.studio.getTaskSessionRef(taskId);
-    if (ref === null) pushToast({ level: "info", message: t("task.noSession") });
-    else await navigator.clipboard.writeText(ref[pick]);
+    if (ref === null) {
+      pushToast({ level: "info", message: t("task.noSession") });
+      return;
+    }
+    if (pick === "sessionRef") {
+      await navigator.clipboard.writeText(`#${ref.sessionId}`);
+      pushToast({ level: "info", message: t("task.copiedRef", { id: ref.sessionId.slice(0, 8) }) });
+    } else if (pick === "sessionId") {
+      await navigator.clipboard.writeText(ref.sessionId);
+      pushToast({ level: "info", message: t("task.copiedId", { id: ref.sessionId.slice(0, 8) }) });
+    } else {
+      await navigator.clipboard.writeText(ref.sessionFile);
+    }
   });
 }
 
@@ -54,7 +69,16 @@ export function buildTaskMenu(options: {
   onRename(): void;
 }): MenuEntry[] {
   const { t, taskId } = options;
+  const pinned = isItemPinned(taskId);
   return [
+    {
+      id: "pin",
+      label: t(pinned ? "task.unpin" : "task.pin"),
+      icon: <Pin />,
+      onSelect: () => {
+        toggleItemPinned(taskId);
+      },
+    },
     { id: "rename", label: t("task.rename"), icon: <Pencil />, shortcut: "F2", onSelect: options.onRename },
     {
       id: "smartRename",
@@ -101,6 +125,12 @@ export function buildTaskMenu(options: {
       onSelect: () => void copySession(t, taskId, "sessionId"),
     },
     {
+      id: "copyRef",
+      label: t("task.copyRef"),
+      icon: <CopyIcon />,
+      onSelect: () => void copySession(t, taskId, "sessionRef"),
+    },
+    {
       id: "copyPath",
       label: t("task.copyPath"),
       icon: <CopyIcon />,
@@ -119,6 +149,41 @@ export function buildTaskMenu(options: {
       icon: <ArchiveIcon />,
       shortcut: "Del",
       onSelect: () => archiveWithUndo(taskId, options.selectedTaskId, t),
+    },
+  ];
+}
+
+export function buildSessionMenu(options: { t: TFunction; session: SessionSummary }): MenuEntry[] {
+  const { t, session } = options;
+  const pinned = session.pinned || isItemPinned(session.id);
+  return [
+    {
+      id: "pin",
+      label: t(pinned ? "task.unpin" : "task.pin"),
+      icon: <Pin />,
+      onSelect: () => {
+        toggleItemPinned(session.id);
+      },
+    },
+    {
+      id: "copyId",
+      label: t("task.copyId"),
+      icon: <CopyIcon />,
+      onSelect: () =>
+        void attempt(t, async () => {
+          await navigator.clipboard.writeText(session.id);
+          pushToast({ level: "info", message: t("task.copiedId", { id: session.id.slice(0, 8) }) });
+        }),
+    },
+    {
+      id: "copyRef",
+      label: t("task.copyRef"),
+      icon: <CopyIcon />,
+      onSelect: () =>
+        void attempt(t, async () => {
+          await navigator.clipboard.writeText(`#${session.id}`);
+          pushToast({ level: "info", message: t("task.copiedRef", { id: session.id.slice(0, 8) }) });
+        }),
     },
   ];
 }

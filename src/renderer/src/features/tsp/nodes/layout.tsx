@@ -1,8 +1,8 @@
 // 布局类节点：col、row、card、section、rule、spacer（规范 Layout）。
-import { useMemo, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
 import { ASK_BUTTON_ROLE, ASK_GATE_ROLE } from "../../../../../shared/tsp/ask-gate.ts";
 import type { TspSpace, TspText } from "../../../../../shared/tsp/tsp.generated.ts";
-import { ChevronDown } from "../../../icons.tsx";
+import { Check, ChevronDown, CopyIcon } from "../../../icons.tsx";
 import { AskButtonRow, AskGateCol } from "../interactive/AskGate.tsx";
 import { ERROR_CARD_ROLE } from "../../../../../shared/tsp/error-turn.ts";
 import { RetryButton } from "../../session-info/RetryButton.tsx";
@@ -24,8 +24,9 @@ import { runOutputSpan } from "../../../../../shared/tsp/run-output.ts";
 import { useSessionExtras } from "../session-extras-store.ts";
 import { useTaskValue } from "../../../store/index.ts";
 import { formatTurnFooter } from "../turn-footer.ts";
-import { UserMessageActions, UserMessageEditor } from "../UserMessageActions.tsx";
-
+import { copyText } from "../actions.ts";
+import { currentLocale } from "../../../store/settings-store.ts";
+import { readUserCardText, UserMessageActions, UserMessageEditor } from "../UserMessageActions.tsx";
 const GAPS: ReadonlySet<TspSpace> = new Set(["none", "xs", "sm", "md", "lg"]);
 
 function stackClasses(p: Readonly<Record<string, unknown>>): string {
@@ -123,6 +124,31 @@ function PlainCol(props: NodeProps) {
  * omp 的助手消息容器。恢复会话时 omp 不重发每轮末尾的用量行（实测 18.12.4），这里在一轮的最后一个助手消息后面
  * 补一行（数据来自会话文件，见 main/tsp/session-extras.ts）；实时的轮 omp 自己带这一行，不补；还在跑的那一轮也不补（useBareTurnIndex）。
  */
+function AssistantCopyAction({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const zh = currentLocale() === "zh-CN";
+  return (
+    <div className="tsp-assistant-actions">
+      <button
+        type="button"
+        className="tsp-assistant-copy-btn"
+        data-copied={copied || undefined}
+        data-testid="tsp-assistant-copy"
+        title={zh ? "复制整条回答内容" : "Copy response"}
+        aria-label={zh ? "复制回答" : "Copy response"}
+        onClick={() => {
+          copyText(text);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? <Check size={12} /> : <CopyIcon size={12} />}
+        <span>{copied ? (zh ? "已复制" : "Copied") : zh ? "复制" : "Copy"}</span>
+      </button>
+    </div>
+  );
+}
+
 function AssistantCol(props: NodeProps) {
   const { taskId, sf } = props.ctx;
   // 只取轮数和自己那一轮的脚注：别的轮的用量刷新了不重画这一列。
@@ -139,6 +165,16 @@ function AssistantCol(props: NodeProps) {
     const role = child.p["role"];
     return !(typeof role === "string" && role.startsWith("omp.thinking"));
   });
+  const answerText = useMemo(() => {
+    const parts: string[] = [];
+    for (const id of nonThoughtIds) {
+      const child = peekTspNode(taskId, sf, id);
+      if (child?.k === "md" && child.p["role"] === undefined && typeof child.p["text"] === "string") {
+        parts.push(child.p["text"]);
+      }
+    }
+    return parts.join("\n\n").trim();
+  }, [nonThoughtIds, taskId, sf]);
   const blank = nonThoughtIds.length === 0 && text === null;
   return (
     <div {...nodeDomProps(props, "tsp-col", { className: stackClasses(props.node.p), blank })}>
@@ -153,6 +189,7 @@ function AssistantCol(props: NodeProps) {
           <div className="tsp-text">{text.text}</div>
         </div>
       )}
+      {!running && answerText !== "" && <AssistantCopyAction text={answerText} />}
     </div>
   );
 }
@@ -258,11 +295,52 @@ function useKeyboardFocus(enabled: boolean): {
   };
 }
 
+const USER_TEXT_COLLAPSE_HEIGHT = 220;
+
+function CollapsibleUserBody({ children }: { children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const zh = currentLocale() === "zh-CN";
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const check = () => setOverflowing(el.scrollHeight > USER_TEXT_COLLAPSE_HEIGHT + 60);
+    check();
+    const obs = new ResizeObserver(check);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const collapsed = overflowing && !expanded;
+  return (
+    <div className="tsp-user-collapsible">
+      <div ref={bodyRef} className="tsp-user-collapsible-inner" data-collapsed={collapsed || undefined}>
+        {children}
+      </div>
+      {overflowing && (
+        <button
+          type="button"
+          className="tsp-user-expand-btn"
+          data-expanded={expanded || undefined}
+          data-testid="user-msg-expand"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <ChevronDown size={11} />
+          <span>{expanded ? (zh ? "收起" : "Collapse") : zh ? "展开全文" : "Show more"}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Card(props: NodeProps) {
   const { node } = props;
   const p = node.p;
   const isUser = p.role === "omp.user";
   const [userEditText, setUserEditText] = useState<string | null>(null);
+  const [rawView, setRawView] = useState(false);
   const collapsible = p.collapsible === true;
   const [collapsed, toggle] = useFold(props, collapsible && p.collapsed === true);
   const keyFocus = useKeyboardFocus(isUser);
@@ -281,15 +359,24 @@ export function Card(props: NodeProps) {
     !hasHead && "nohead",
   ].filter((c): c is string => typeof c === "string");
   const icon = roleIcon(p.role);
+  const rawUserText = isUser && rawView ? readUserCardText(props.ctx.taskId, props.ctx.sf, node.id) : null;
+  const innerNodes =
+    rawUserText !== null ? (
+      <pre className="tsp-user-raw-view" data-testid="user-msg-raw-view">
+        {rawUserText}
+      </pre>
+    ) : (
+      <>
+        {node.c
+          .filter((id) => id !== headId)
+          .map((id) => (
+            <TspNode key={id} id={id} ctx={props.ctx} />
+          ))}
+        {p.role === ERROR_CARD_ROLE && <RetryButton taskId={props.ctx.taskId} sf={props.ctx.sf} id={node.id} />}
+      </>
+    );
   const body: ReactNode = (
-    <div className="tsp-card-body">
-      {node.c
-        .filter((id) => id !== headId)
-        .map((id) => (
-          <TspNode key={id} id={id} ctx={props.ctx} />
-        ))}
-      {p.role === ERROR_CARD_ROLE && <RetryButton taskId={props.ctx.taskId} sf={props.ctx.sf} id={node.id} />}
-    </div>
+    <div className="tsp-card-body">{isUser ? <CollapsibleUserBody>{innerNodes}</CollapsibleUserBody> : innerNodes}</div>
   );
   return (
     <div
@@ -350,6 +437,8 @@ export function Card(props: NodeProps) {
           sf={props.ctx.sf}
           cardId={node.id}
           editing={userEditText !== null}
+          rawView={rawView}
+          onToggleRawView={() => setRawView((v) => !v)}
           onStartEdit={(initial) => setUserEditText(initial)}
           onCloseEdit={() => setUserEditText(null)}
         />

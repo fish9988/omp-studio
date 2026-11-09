@@ -6,7 +6,8 @@
 import type { Project, TaskId } from "../../../../shared/ipc.ts";
 import type { SidebarFolder, SidebarItem } from "../../../../shared/ui/sidebar-model.ts";
 import { setHistoryOrder, useShellValue } from "../../app/shell-store.ts";
-import { Segmented } from "../../ui/controls.tsx";
+import { ChevronDown } from "../../icons.tsx";
+import { IconButton, Segmented } from "../../ui/controls.tsx";
 import { FolderGroup } from "./FolderGroup.tsx";
 import { ItemRow } from "./ItemRow.tsx";
 import { initialPerFolder, moreNavId, showMoreStep, timeLimitKey, visibleItems, initialByTime } from "./list-view.ts";
@@ -22,8 +23,10 @@ interface HistorySectionProps {
   selectedTaskId: TaskId | null;
   tabStopId: string;
   renamingId: TaskId | null;
+  unreadTaskIds?: ReadonlySet<string> | undefined;
   rows: RowHandlers;
   onToggle(folder: SidebarFolder, open: boolean): void;
+  onSetAllOpen?(open: boolean): void;
   onShowMore(key: string): void;
   onNewTask(folder: SidebarFolder): void;
   onOpenProjectMenu(project: Project, x: number, y: number, trigger: HTMLElement): void;
@@ -39,22 +42,36 @@ export function HistorySection(props: HistorySectionProps) {
   const timeLimit = searching ? Infinity : (props.limits[timeLimitKey] ?? initialByTime);
   const time = visibleItems(props.timeline, timeLimit, props.selectedTaskId);
   const timeMoreId = moreNavId(timeLimitKey);
+  const anyOpen = props.folders.some((folder) => props.isOpen(folder));
+  const canToggleAll = order === "folder" && !searching && props.folders.length > 1 && props.onSetAllOpen !== undefined;
 
   return (
     <section className="sb-group sb-history" aria-label={t("sidebar.searchHistory")} data-testid="sidebar-history">
       <div className="sb-history-head">
         <p className="sb-group-title">{t("sidebar.searchHistory")}</p>
-        <Segmented
-          size="sm"
-          label={t("sidebar.historyOrder")}
-          testId="sidebar-history-by"
-          value={order}
-          options={[
-            { value: "folder", label: t("sidebar.historyByFolder") },
-            { value: "time", label: t("sidebar.historyByTime") },
-          ]}
-          onChange={setHistoryOrder}
-        />
+        <div className="sb-history-controls">
+          {canToggleAll && (
+            <IconButton
+              className="sb-toggle-all"
+              testId="sidebar-toggle-all-folders"
+              label={t(anyOpen ? "sidebar.collapseAll" : "sidebar.expandAll")}
+              onClick={() => props.onSetAllOpen?.(!anyOpen)}
+            >
+              <ChevronDown size={12} />
+            </IconButton>
+          )}
+          <Segmented
+            size="sm"
+            label={t("sidebar.historyOrder")}
+            testId="sidebar-history-by"
+            value={order}
+            options={[
+              { value: "folder", label: t("sidebar.historyByFolder") },
+              { value: "time", label: t("sidebar.historyByTime") },
+            ]}
+            onChange={setHistoryOrder}
+          />
+        </div>
       </div>
       {order === "time" ? (
         <>
@@ -65,6 +82,8 @@ export function HistorySection(props: HistorySectionProps) {
               selectedTaskId={props.selectedTaskId}
               tabStopId={props.tabStopId}
               renamingId={props.renamingId}
+              unreadTaskIds={props.unreadTaskIds}
+              showProjectLabel
               rows={rows}
             />
           ))}
@@ -92,6 +111,7 @@ export function HistorySection(props: HistorySectionProps) {
             selectedTaskId={props.selectedTaskId}
             tabStopId={props.tabStopId}
             renamingId={props.renamingId}
+            unreadTaskIds={props.unreadTaskIds}
             rows={rows}
             onToggle={props.onToggle}
             onShowMore={(target) => props.onShowMore(target.key)}

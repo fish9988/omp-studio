@@ -27,4 +27,9 @@ export const task = {
   restartBusyStarting: "任务正在启动",
   restartBusyBackground: "后台还有工作在运行，结束后才能重开",
   exportHtml: "导出为 HTML…",
+  pin: "置顶会话",
+  unpin: "取消置顶会话",
+  copyRef: "复制跨对话引用 (#ID)",
+  copiedId: "已复制会话 ID：{id}",
+  copiedRef: "已复制跨对话引用 #{id}，粘贴到其他对话即可引用此会话",
 } satisfies Record<string, MessageEntry>;

@@ -20,6 +20,7 @@ interface FolderGroupProps {
   selectedTaskId: TaskId | null;
   tabStopId: string;
   renamingId: TaskId | null;
+  unreadTaskIds?: ReadonlySet<string> | undefined;
   rows: RowHandlers;
   onToggle(folder: SidebarFolder, open: boolean): void;
   onShowMore(folder: SidebarFolder): void;
@@ -33,6 +34,12 @@ export function FolderGroup(props: FolderGroupProps) {
   const { project } = folder;
   const navId = folderNavId(folder);
   const hasWaiting = folder.items.some((item) => item.kind === "task" && item.task.status === "needs_you");
+  const hasRunning = folder.items.some(
+    (item) => item.kind === "task" && (item.task.status === "running" || item.task.status === "starting"),
+  );
+  const hasUnread = folder.items.some(
+    (item) => item.kind === "task" && (props.unreadTaskIds?.has(item.task.id) ?? false),
+  );
   const { shown, remaining } = visibleItems(folder.items, props.limit, props.selectedTaskId);
   const moreId = moreNavId(folder.key);
   const body = useRef<HTMLDivElement>(null);
@@ -80,6 +87,12 @@ export function FolderGroup(props: FolderGroupProps) {
           </span>
           <span className="sb-group-count" data-shown={!open || undefined}>
             {hasWaiting && <span className="sb-waiting-diamond" role="img" aria-label={t("sidebar.waitingHere")} />}
+            {!hasWaiting && hasRunning && (
+              <span className="sb-running-dot" role="img" aria-label={t("sidebar.runningHere")} />
+            )}
+            {!hasWaiting && !hasRunning && hasUnread && (
+              <span className="sb-unread-dot" role="img" aria-label={t("sidebar.unreadHere")} />
+            )}
             {folder.items.length}
           </span>
         </button>
@@ -119,6 +132,7 @@ export function FolderGroup(props: FolderGroupProps) {
               selectedTaskId={props.selectedTaskId}
               tabStopId={props.tabStopId}
               renamingId={props.renamingId}
+              unreadTaskIds={props.unreadTaskIds}
               rows={rows}
             />
           ))}

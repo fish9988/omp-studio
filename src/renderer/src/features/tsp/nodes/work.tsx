@@ -16,7 +16,8 @@ import { isRecord } from "../../../../../shared/type-guards.ts";
 import { nodeRole } from "../../../../../shared/tsp/document.ts";
 import { ASK_TOOL_NODES, ASK_TOOL_ROLE, openAskTool, sameOpenAskTool } from "../../../../../shared/tsp/ask-gate.ts";
 import { labels } from "../labels.ts";
-import { Check, ChevronDown, CopyIcon } from "../../../icons.tsx";
+import { Check, ChevronDown, CopyIcon, External } from "../../../icons.tsx";
+import { openFilePreview } from "../../file-preview/index.ts";
 import { copyText, openHref, runAction } from "../actions.ts";
 import { Clamp } from "../Clamp.tsx";
 import { FoldCtx, NO_FOLD, OPEN_FOLD, type FoldState } from "../fold-context.ts";
@@ -106,14 +107,44 @@ function CommandText({ text, lang }: { text: string; lang: string | undefined })
     </>
   );
 }
+const CD_PREFIX =
+  /^\s*(?:cd|Set-Location|sl|pushd|chdir)(?:\s+\/d)?\s+(?:"[^"]*"|'[^']*'|[^\s;&|]+)\s*(?:;|&&|\r?\n)\s*/i;
+const ENV_PREFIX =
+  /^\s*(?:\$env:[A-Za-z_][\w]*\s*\+?=\s*(?:"[^"]*"|'[^']*'|[^\s;]+)|export\s+[A-Za-z_]\w*=(?:"[^"]*"|'[^']*'|[^\s;&]+)|set\s+[A-Za-z_]\w*=[^&\r\n]*)\s*(?:;|&&|\r?\n)\s*/i;
 
-function Target({ p }: { p: Readonly<Record<string, unknown>> }) {
+/** 剥离命令开头的 `cd <dir>;` / `$env:X = …;` 等噪音（复刻自 pi-agent-desktop-more lib/work-timeline.ts）。 */
+export function stripCommandNoise(command: string): string {
+  let text = command;
+  for (let i = 0; i < 6; i++) {
+    const next = text.replace(CD_PREFIX, "").replace(ENV_PREFIX, "");
+    if (next === text) break;
+    text = next;
+  }
+  const trimmed = text.trim();
+  return trimmed || command.trim();
+}
+
+function openToolFile(p: Readonly<Record<string, unknown>>, ctx: TspContext): void {
+  const href = asString(p.href);
+  if (href !== undefined && /^file:\/\//i.test(href)) {
+    openHref(href, ctx);
+    return;
+  }
+  const target = p.target;
+  if (typeof target === "string" && target.trim() !== "") {
+    const clean = target.replace(/(?::\d+(?:[-:]\d+)?|\s+\(\d+.*\))$/, "").trim();
+    if (clean !== "") openFilePreview(ctx.taskId, clean);
+  }
+}
+
+function Target({ p, ctx }: { p: Readonly<Record<string, unknown>>; ctx: TspContext }) {
   const target = p.target as TspText | undefined;
   if (target === undefined) return null;
   const kind = asString(p.targetKind) ?? "text";
+  const href = asString(p.href);
   let body: ReactNode;
   if (typeof target !== "string") body = <TspSpans text={target} />;
-  else if (kind === "command") body = <CommandText text={target} lang={asString(p.lang)} />;
+  else if (kind === "command") body = <CommandText text={stripCommandNoise(target)} lang={asString(p.lang)} />;
   else if (kind === "path") {
     const match = /^(.*?)(:\d+(?:[-:]\d+)?)?$/.exec(target);
     const path = match?.[1] ?? target;
@@ -135,8 +166,21 @@ function Target({ p }: { p: Readonly<Record<string, unknown>> }) {
       </>
     );
   } else body = target;
+  const canOpenFile =
+    kind === "path" && (typeof target === "string" || (href !== undefined && /^file:\/\//i.test(href)));
   return (
-    <span className={`tsp-tool-target ${kind}`} title={asString(p.href)}>
+    <span
+      className={`tsp-tool-target ${kind}`}
+      title={href ?? (kind === "command" && typeof target === "string" ? target : undefined)}
+      onClick={
+        canOpenFile
+          ? (event) => {
+              event.stopPropagation();
+              openToolFile(p, ctx);
+            }
+          : undefined
+      }
+    >
       {body}
     </span>
   );
@@ -146,7 +190,7 @@ function Target({ p }: { p: Readonly<Record<string, unknown>> }) {
 function AskTarget({ p, id, ctx }: { p: Readonly<Record<string, unknown>>; id: string; ctx: TspContext }) {
   const open = useTspDerived(ctx.taskId, openAskTool, sameOpenAskTool, ASK_TOOL_NODES);
   if (open?.sf === ctx.sf && open.id === id) return null;
-  return <Target p={p} />;
+  return <Target p={p} ctx={ctx} />;
 }
 
 /**
@@ -322,7 +366,7 @@ export function Tool(props: NodeProps) {
           <span className="tsp-tool-title">
             <TspSpans text={p.title as TspText | undefined} />
           </span>
-          {nodeRole(node) === ASK_TOOL_ROLE ? <AskTarget p={p} id={node.id} ctx={ctx} /> : <Target p={p} />}
+          {nodeRole(node) === ASK_TOOL_ROLE ? <AskTarget p={p} id={node.id} ctx={ctx} /> : <Target p={p} ctx={ctx} />}
           {meta.map((m, index) => (
             <span key={index} className="tsp-tool-meta">
               <MetaText text={m} />
@@ -355,6 +399,18 @@ export function Tool(props: NodeProps) {
           </span>
         )}
         <span className="tsp-tool-acts" onClick={(event) => event.stopPropagation()}>
+          {(asString(p.targetKind) === "path" || (href !== undefined && /^file:\/\//i.test(href))) && (
+            <button
+              type="button"
+              className="tsp-tool-act"
+              data-testid="tool-open-preview"
+              title="在侧栏打开预览"
+              aria-label="在侧栏打开预览"
+              onClick={() => openToolFile(p, ctx)}
+            >
+              <External size={12} />
+            </button>
+          )}
           {command !== undefined && (
             <button
               type="button"

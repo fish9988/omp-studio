@@ -28,4 +28,9 @@ export const task = {
   restartBusyStarting: "The task is starting",
   restartBusyBackground: "Background work is still running; restart when it finishes",
   exportHtml: "Export as HTML…",
+  pin: "Pin session",
+  unpin: "Unpin session",
+  copyRef: "Copy reference (#ID)",
+  copiedId: "Copied session ID: {id}",
+  copiedRef: "Copied #{id} — paste into another chat to reference this session",
 } satisfies Record<keyof typeof zhCN, MessageEntry>;

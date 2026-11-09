@@ -25,4 +25,8 @@ export const sidebar = {
   waitingHere: "有任务在等你",
   loadFailed: "任务列表加载失败：{message}",
   projectsFailed: "项目列表加载失败：{message}",
+  collapseAll: "收起全部项目",
+  expandAll: "展开全部项目",
+  unreadHere: "有新完成的任务",
+  runningHere: "有任务正在运行",
 } satisfies Record<string, MessageEntry>;

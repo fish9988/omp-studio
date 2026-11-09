@@ -2,15 +2,14 @@
 // 任务菜单和顶栏 ⋯ 是同一份（task-menu.tsx）。
 import { useCallback, useState, type ReactNode } from "react";
 import type { TFunction } from "../../../../shared/i18n/index.ts";
-import type { Project, TaskId, TaskState } from "../../../../shared/ipc.ts";
+import type { Project, SessionSummary, TaskId, TaskState } from "../../../../shared/ipc.ts";
 import { Branch, Folder, Trash } from "../../icons.tsx";
 import { Menu, type MenuAnchor, type MenuEntry } from "../../ui/Menu.tsx";
 import { pushToast } from "../dialogs/index.ts";
 import { cleanupOrphans } from "../git/git-actions.ts";
 import { archivePending, commitPendingArchives } from "./archive-store.ts";
 import { refreshProjects } from "./projects-store.ts";
-import { attempt, buildTaskMenu } from "./task-menu.tsx";
-
+import { attempt, buildSessionMenu, buildTaskMenu } from "./task-menu.tsx";
 interface OpenMenu {
   anchor: MenuAnchor;
   items: MenuEntry[];
@@ -28,6 +27,7 @@ interface MenusOptions {
 export function useSidebarMenus({ t, selectedTaskId, projectTaskIds, onRename }: MenusOptions): {
   menu: ReactNode;
   openTaskMenu(task: TaskState, x: number, y: number, trigger: HTMLElement): void;
+  openSessionMenu(session: SessionSummary, x: number, y: number, trigger: HTMLElement): void;
   openProjectMenu(project: Project, x: number, y: number, trigger: HTMLElement): void;
 } {
   const [open, setOpen] = useState<OpenMenu | null>(null);
@@ -46,6 +46,12 @@ export function useSidebarMenus({ t, selectedTaskId, projectTaskIds, onRename }:
       }),
     });
 
+  const openSessionMenu = (session: SessionSummary, x: number, y: number, trigger: HTMLElement) =>
+    setOpen({
+      anchor: { x, y, returnFocus: trigger },
+      label: t("task.more"),
+      items: buildSessionMenu({ t, session }),
+    });
   const openProjectMenu = (project: Project, x: number, y: number, trigger: HTMLElement) =>
     setOpen({
       anchor: { x, y, returnFocus: trigger },
@@ -88,5 +94,5 @@ export function useSidebarMenus({ t, selectedTaskId, projectTaskIds, onRename }:
 
   const menu =
     open === null ? null : <Menu anchor={open.anchor} items={open.items} label={open.label} onClose={close} />;
-  return { menu, openTaskMenu, openProjectMenu };
+  return { menu, openTaskMenu, openSessionMenu, openProjectMenu };
 }

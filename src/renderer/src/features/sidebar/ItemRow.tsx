@@ -12,16 +12,32 @@ import { TaskRow, type RowHandlers } from "./TaskRow.tsx";
 interface SessionRowProps {
   session: SessionSummary;
   tabStop: boolean;
+  pinned?: boolean | undefined;
   rows: RowHandlers;
 }
 
-const SessionRow = memo(function SessionRow({ session, tabStop, rows }: SessionRowProps) {
+const SessionRow = memo(function SessionRow({ session, tabStop, pinned, rows }: SessionRowProps) {
   const { t, locale } = rows;
   const label = sessionTitle(session) ?? t("history.untitled");
   const navId = `session:${session.id}`;
   const time = useCoarseClock((now) => formatTaskTime(t, locale, session.modifiedAt, now));
   return (
-    <div className="sb-row" data-flip-key={session.id} data-testid="sidebar-session">
+    <div
+      className="sb-row"
+      data-flip-key={session.id}
+      data-pinned={pinned || undefined}
+      data-testid="sidebar-session"
+      onContextMenu={(event) => {
+        if (!rows.onOpenSessionMenu) return;
+        event.preventDefault();
+        rows.onOpenSessionMenu(
+          session,
+          event.clientX,
+          event.clientY,
+          event.currentTarget.querySelector<HTMLElement>(".sb-row-main") ?? event.currentTarget,
+        );
+      }}
+    >
       <button
         type="button"
         className="sb-row-main"
@@ -49,18 +65,31 @@ interface ItemRowProps {
   selectedTaskId: TaskId | null;
   tabStopId: string;
   renamingId: TaskId | null;
+  unreadTaskIds?: ReadonlySet<string> | undefined;
+  showProjectLabel?: boolean | undefined;
   rows: RowHandlers;
 }
 
-export function ItemRow({ item, selectedTaskId, tabStopId, renamingId, rows }: ItemRowProps) {
+export function ItemRow({
+  item,
+  selectedTaskId,
+  tabStopId,
+  renamingId,
+  unreadTaskIds,
+  showProjectLabel,
+  rows,
+}: ItemRowProps) {
   if (item.kind === "session")
-    return <SessionRow session={item.session} tabStop={tabStopId === item.key} rows={rows} />;
+    return <SessionRow session={item.session} tabStop={tabStopId === item.key} pinned={item.pinned} rows={rows} />;
   return (
     <TaskRow
       task={item.task}
       selected={item.task.id === selectedTaskId}
       tabStop={tabStopId === item.key}
       renaming={renamingId === item.task.id}
+      pinned={item.pinned}
+      unread={unreadTaskIds?.has(item.task.id)}
+      projectLabel={showProjectLabel ? item.projectLabel : undefined}
       rows={rows}
     />
   );

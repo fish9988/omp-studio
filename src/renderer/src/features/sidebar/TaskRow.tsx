@@ -3,8 +3,8 @@
 // 时钟一跳只有文字变了的行重画。
 import { memo, useRef } from "react";
 import type { TFunction } from "../../../../shared/i18n/index.ts";
-import { limits, type Locale, type TaskState } from "../../../../shared/ipc.ts";
-import { Branch, Dots } from "../../icons.tsx";
+import { limits, type Locale, type SessionSummary, type TaskState } from "../../../../shared/ipc.ts";
+import { Branch, Dots, Pin } from "../../icons.tsx";
 import { IconButton } from "../../ui/controls.tsx";
 import { StatusDot } from "./StatusDot.tsx";
 import { taskTail } from "../../../../shared/ui/task-time.ts";
@@ -18,6 +18,7 @@ export interface RowHandlers {
   onSelect(task: TaskState, viaKeyboard: boolean): void;
   onFocusItem(navId: string): void;
   onOpenMenu(task: TaskState, x: number, y: number, trigger: HTMLElement): void;
+  onOpenSessionMenu?(session: SessionSummary, x: number, y: number, trigger: HTMLElement): void;
   onStartRename(task: TaskState): void;
   onCommitRename(task: TaskState, title: string | null): void;
   onArchive(task: TaskState): void;
@@ -29,6 +30,9 @@ interface TaskRowProps {
   /** roving tabindex：整个列表只有一个停靠点。 */
   tabStop: boolean;
   renaming: boolean;
+  pinned?: boolean | undefined;
+  unread?: boolean | undefined;
+  projectLabel?: string | undefined;
   rows: RowHandlers;
 }
 
@@ -77,7 +81,16 @@ function RenameInput({
   );
 }
 
-export const TaskRow = memo(function TaskRow({ task, selected, tabStop, renaming, rows }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({
+  task,
+  selected,
+  tabStop,
+  renaming,
+  pinned,
+  unread,
+  projectLabel,
+  rows,
+}: TaskRowProps) {
   const { t } = rows;
   const cleanTitle = taskTitle(task);
   const title = cleanTitle === "" ? t("task.untitled") : cleanTitle;
@@ -93,6 +106,8 @@ export const TaskRow = memo(function TaskRow({ task, selected, tabStop, renaming
       data-menu=""
       data-selected={selected}
       data-status={task.status}
+      data-pinned={pinned || undefined}
+      data-unread={unread || undefined}
       data-testid="task-row"
       onContextMenu={(event) => {
         event.preventDefault();
@@ -126,6 +141,19 @@ export const TaskRow = memo(function TaskRow({ task, selected, tabStop, renaming
         <span className="sb-row-title" title={title}>
           {title}
         </span>
+        {unread && task.status !== "running" && task.status !== "needs_you" && (
+          <span className="sb-unread-dot" title={t("sidebar.unreadHere")} aria-label={t("sidebar.unreadHere")} />
+        )}
+        {pinned && (
+          <span className="sb-row-pin" title={t("task.unpin")} aria-hidden="true">
+            <Pin size={11} />
+          </span>
+        )}
+        {projectLabel !== undefined && projectLabel !== "" && (
+          <span className="sb-row-project" title={projectLabel}>
+            {projectLabel}
+          </span>
+        )}
         {task.worktreeBranch !== null && (
           <span
             className="sb-row-branch"
@@ -136,7 +164,6 @@ export const TaskRow = memo(function TaskRow({ task, selected, tabStop, renaming
             <Branch size={12} />
           </span>
         )}
-        {/* 没有时间也占着位置：⋯ 盖在这一格上，标题不跑到按钮底下 */}
         <span className="sb-row-tail">{tail}</span>
       </button>
       <IconButton

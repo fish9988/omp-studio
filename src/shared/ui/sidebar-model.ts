@@ -21,9 +21,8 @@ export function projectLabels(projects: readonly Project[]): Map<ProjectId, stri
 
 /** 侧栏列表里的一行：studio 任务或还没挂在任务上的历史会话。 */
 export type SidebarItem =
-  | { kind: "task"; key: string; at: number; task: TaskState }
-  | { kind: "session"; key: string; at: number; session: SessionSummary };
-
+  | { kind: "task"; key: string; at: number; task: TaskState; pinned?: boolean; projectLabel?: string }
+  | { kind: "session"; key: string; at: number; session: SessionSummary; pinned?: boolean; projectLabel?: string };
 export interface SidebarFolder {
   /** 分组键：规范化后的路径（斜杠统一、去尾斜杠、小写），同一文件夹不同写法归一组。 */
   key: string;
@@ -60,15 +59,18 @@ export function sessionTitle(session: Pick<SessionSummary, "title" | "firstPromp
   return null;
 }
 
-/** omp 置顶（`/pin`）的历史会话排在最前，其余按最近活动；任务没有置顶信息，不受影响。 */
-function pinRank(item: SidebarItem): number {
-  return item.kind === "session" && item.session.pinned ? 0 : 1;
+/** omp 置顶（`/pin`）或客户端置顶（pinnedIds）的任务/历史会话排在最前，其余按最近活动。 */
+function isItemPinned(item: SidebarItem, pinnedIds?: ReadonlySet<string>): boolean {
+  if (item.pinned === true) return true;
+  if (item.kind === "session") return item.session.pinned || (pinnedIds?.has(item.session.id) ?? false);
+  return pinnedIds?.has(item.task.id) ?? false;
 }
 
-function byRecentItem(a: SidebarItem, b: SidebarItem): number {
-  return pinRank(a) - pinRank(b) || b.at - a.at || (a.kind === b.kind ? 0 : a.kind === "task" ? -1 : 1);
+function byRecentItem(a: SidebarItem, b: SidebarItem, pinnedIds?: ReadonlySet<string>): number {
+  const rankA = isItemPinned(a, pinnedIds) ? 0 : 1;
+  const rankB = isItemPinned(b, pinnedIds) ? 0 : 1;
+  return rankA - rankB || b.at - a.at || (a.kind === b.kind ? 0 : a.kind === "task" ? -1 : 1);
 }
-
 export interface SidebarInput {
   projects: readonly Project[];
   tasks: readonly TaskState[];
@@ -79,6 +81,8 @@ export interface SidebarInput {
   query: string;
   /** 默认文件夹（AppInfo.chatsDir）；文件夹排列里永远排第一。 */
   defaultCwd?: string | null;
+  /** 用户在侧栏手动置顶的任务 ID 或会话 ID 集合。 */
+  pinnedIds?: ReadonlySet<string>;
 }
 
 function matches(needle: string, title: string | null): boolean {
@@ -89,16 +93,35 @@ function matches(needle: string, title: string | null): boolean {
 export function buildTimeline(input: SidebarInput): SidebarItem[] {
   const needle = input.query.trim().toLowerCase();
   const known = new Set(input.projects.map((project) => project.id));
+  const labelsByProject = projectLabels(input.projects);
   const items: SidebarItem[] = [];
   for (const task of input.tasks) {
     if (input.hidden.has(task.id) || !known.has(task.projectId) || !matches(needle, taskTitle(task))) continue;
-    items.push({ kind: "task", key: `task:${task.id}`, at: lastActivityAt(task), task });
+    const pinned = input.pinnedIds?.has(task.id) ?? false;
+    const projectLabel = labelsByProject.get(task.projectId);
+    items.push({
+      kind: "task",
+      key: `task:${task.id}`,
+      at: lastActivityAt(task),
+      task,
+      ...(pinned ? { pinned: true } : {}),
+      ...(projectLabel ? { projectLabel } : {}),
+    });
   }
   for (const session of input.sessions) {
     if (session.taskId !== null || !matches(needle, sessionTitle(session))) continue;
-    items.push({ kind: "session", key: `session:${session.id}`, at: session.modifiedAt, session });
+    const pinned = session.pinned || (input.pinnedIds?.has(session.id) ?? false);
+    const projectLabel = folderName(session.cwd);
+    items.push({
+      kind: "session",
+      key: `session:${session.id}`,
+      at: session.modifiedAt,
+      session,
+      ...(pinned ? { pinned: true } : {}),
+      ...(projectLabel ? { projectLabel } : {}),
+    });
   }
-  return items.sort(byRecentItem);
+  return items.sort((a, b) => byRecentItem(a, b, input.pinnedIds));
 }
 
 /**

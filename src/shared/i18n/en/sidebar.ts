@@ -26,4 +26,8 @@ export const sidebar = {
   waitingHere: "A task is waiting for you",
   loadFailed: "Could not load tasks: {message}",
   projectsFailed: "Could not load projects: {message}",
+  collapseAll: "Collapse all projects",
+  expandAll: "Expand all projects",
+  unreadHere: "Unread completed task",
+  runningHere: "Task running here",
 } satisfies Record<keyof typeof zhCN, MessageEntry>;

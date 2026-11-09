@@ -49,6 +49,7 @@ import {
 import type { RowHandlers } from "./TaskRow.tsx";
 import { useHistorySessions } from "./use-history-sessions.ts";
 import { useSidebarMenus } from "./use-sidebar-menus.tsx";
+import { clearTaskUnread, markTasksUnread, usePinnedIds, useUnreadTaskIds } from "./sidebar-prefs-store.ts";
 import "./sidebar.css";
 
 export function Sidebar() {
@@ -64,7 +65,33 @@ export function Sidebar() {
   const hidden = useHiddenTasks();
   const chatsDir = useAppInfo()?.chatsDir ?? null;
   const defaultLabel = t("empty.defaultFolder");
+  const pinnedIds = usePinnedIds();
+  const unreadTaskIds = useUnreadTaskIds();
 
+  // 追踪后台任务完成并标记未读（对齐 pi-agent-desktop-more SessionSidebar）：非当前选中任务从 running 正常结束时亮起未读点，选中即清除。
+  const prevRunningRef = useRef<Set<TaskId>>(new Set());
+  useEffect(() => {
+    const nowRunning = new Set<TaskId>();
+    const completedInBg: TaskId[] = [];
+    for (const task of tasksState.list) {
+      if (task.status === "running" || task.status === "starting") {
+        nowRunning.add(task.id);
+      } else if (
+        prevRunningRef.current.has(task.id) &&
+        task.id !== selectedTaskId &&
+        task.status === "idle" &&
+        task.lastTurn?.status === "completed"
+      ) {
+        completedInBg.push(task.id);
+      }
+    }
+    prevRunningRef.current = nowRunning;
+    if (completedInBg.length > 0) markTasksUnread(completedInBg);
+  }, [tasksState.list, selectedTaskId]);
+
+  useEffect(() => {
+    if (selectedTaskId !== null) clearTaskUnread(selectedTaskId);
+  }, [selectedTaskId]);
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
   const [limits, setLimits] = useState<Record<string, number>>({});
   const [tabStop, setTabStop] = useState("");
@@ -113,15 +140,16 @@ export function Sidebar() {
         hidden,
         query,
         defaultCwd: chatsDir,
+        pinnedIds,
       }).map((folder) => (isDefaultFolder(folder.cwd, chatsDir) ? { ...folder, label: defaultLabel } : folder)),
-    [projectsState.list, tasksState.list, sessions, hidden, query, chatsDir, defaultLabel],
+    [projectsState.list, tasksState.list, sessions, hidden, query, chatsDir, defaultLabel, pinnedIds],
   );
   const timeline = useMemo(
     () =>
       order === "time"
-        ? buildTimeline({ projects: projectsState.list, tasks: tasksState.list, sessions, hidden, query })
+        ? buildTimeline({ projects: projectsState.list, tasks: tasksState.list, sessions, hidden, query, pinnedIds })
         : [],
-    [order, projectsState.list, tasksState.list, sessions, hidden, query],
+    [order, projectsState.list, tasksState.list, sessions, hidden, query, pinnedIds],
   );
   const waiting = useMemo(() => waitingTasks(tasksState.list, hidden), [tasksState.list, hidden]);
   const labelOf = (projectId: ProjectId) => {
@@ -155,7 +183,7 @@ export function Sidebar() {
     });
   }, [autoOpened]);
 
-  const { menu, openTaskMenu, openProjectMenu } = useSidebarMenus({
+  const { menu, openTaskMenu, openSessionMenu, openProjectMenu } = useSidebarMenus({
     t,
     selectedTaskId,
     projectTaskIds: (project) => tasksState.list.filter((task) => task.projectId === project.id).map((task) => task.id),
@@ -163,8 +191,8 @@ export function Sidebar() {
   });
 
   // 行的回调：一份稳定的对象（只在语言变了时换新），回调里读最新的选中任务和菜单，任务行的 memo 才有用。
-  const latest = useRef({ selectedTaskId, openTaskMenu });
-  latest.current = { selectedTaskId, openTaskMenu };
+  const latest = useRef({ selectedTaskId, openTaskMenu, openSessionMenu });
+  latest.current = { selectedTaskId, openTaskMenu, openSessionMenu };
   const rows = useMemo<RowHandlers>(
     () => ({
       t,
@@ -178,6 +206,7 @@ export function Sidebar() {
           .catch((error: unknown) => reportError(t, error)),
       onFocusItem: setTabStop,
       onOpenMenu: (task, x, y, trigger) => latest.current.openTaskMenu(task, x, y, trigger),
+      onOpenSessionMenu: (session, x, y, trigger) => latest.current.openSessionMenu(session, x, y, trigger),
       onStartRename: (task) => setRenamingId(task.id),
       onCommitRename: (task, title) => {
         setRenamingId(null);
@@ -363,8 +392,16 @@ export function Sidebar() {
             selectedTaskId={selectedTaskId}
             tabStopId={tabStopId}
             renamingId={renamingId}
+            unreadTaskIds={unreadTaskIds}
             rows={rows}
             onToggle={(folder, open) => setOpenOverride((current) => ({ ...current, [folder.key]: open }))}
+            onSetAllOpen={(open) =>
+              setOpenOverride((current) => {
+                const next = { ...current };
+                for (const folder of folders) next[folder.key] = open;
+                return next;
+              })
+            }
             onShowMore={(key) =>
               setLimits((current) => ({
                 ...current,

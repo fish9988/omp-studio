@@ -181,6 +181,18 @@
   padding-right: var(--space-1);
   background: var(--bg-sidebar);
 }
+.sb-history-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.sb-toggle-all {
+  --btn-h: 22px;
+  color: var(--text-3);
+}
+.sb-toggle-all:hover {
+  color: var(--text);
+}
 /* 毛玻璃（app.css「Windows 11 毛玻璃」）：侧栏透明，露出 #app 那层半透明侧栏色。钉住的标题行没法再挡住下面滚过的行：
    实底是一条色带；半透明底、backdrop-filter 都会把 #app 那层半透明色再叠一遍，成了一条更深的带子（2026-10-30 真窗截屏）。
    所以毛玻璃下标题行不钉住，跟着列表一起滚走。 */
@@ -358,6 +370,40 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.sb-row-pin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  opacity: 0.85;
+}
+.sb-row-project {
+  flex: none;
+  max-width: 76px;
+  padding: 1px var(--space-1-5);
+  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-unread-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.sb-running-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--st-running);
+}
 /* 时间一列：所有行的右边对齐；任务行 hover 时 ⋯ 盖在这一格上（最小宽 = ⋯ 的宽），所以任务行不再另外让位。
    无衬线 + 等宽数字（2026-10-29：原来等宽字体，"40 分钟"里中文落到回退字体、数字和中文之间空一大格，英文 Just now 又宽得挤掉标题） */
 .sb-row-tail {
@@ -437,8 +483,9 @@
 .sb-dot-waiting {
   color: var(--st-waiting);
 }
-/* 对齐 dsh-claude-style（sidebar-status.css）：常态空闲/已完成的会话不画绿圈对勾或空心点，仅在运行中/待介入/报错/中断时显示状态图标 */
-.sb-dot-done,
+.sb-dot-done {
+  color: var(--st-done);
+}
 .sb-dot-none {
   width: 0;
   margin-right: calc(var(--space-2) * -1);

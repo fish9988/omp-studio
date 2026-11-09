@@ -3830,3 +3830,191 @@
   opacity: 0.45;
   pointer-events: none;
 }
+
+/* ─── Pi Desktop More 过程组控制栏、探索步骤聚合行、长用户消息折叠与回答底栏复制按钮 ─── */
+.tsp-process-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tsp-process-summary-acts {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+.tsp-process-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tsp-process-group:hover .tsp-process-controls,
+.tsp-process-controls:focus-within {
+  opacity: 1;
+}
+.tsp-process-ctrl-btn {
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-raised);
+  color: var(--text-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tsp-process-ctrl-btn:hover,
+.tsp-process-ctrl-btn[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+.tsp-explore-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tsp-explore-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1-5) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.tsp-explore-group-head:hover {
+  background: var(--bg-hover);
+}
+.tsp-explore-group-title {
+  flex: none;
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+.tsp-explore-group-preview {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsp-explore-group-head > .tsp-chev {
+  margin-left: auto;
+}
+.tsp-explore-group-children {
+  display: flex;
+  flex-direction: column;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg-sunken);
+}
+.tsp-explore-group-children > * + * {
+  border-top: 0.5px solid var(--border-subtle);
+}
+.tsp-ag-diff-btn {
+  flex: none;
+  height: 20px;
+  padding: 0 var(--space-1-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+.tsp-ag-diff-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+.tsp-tool-target.path {
+  cursor: pointer;
+}
+.tsp-tool-target.path:hover .name {
+  text-decoration: underline;
+}
+.tsp-user-collapsible {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tsp-user-collapsible-inner[data-collapsed] {
+  max-height: 220px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent 100%);
+}
+.tsp-user-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding: 2px var(--space-1-5);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.tsp-user-expand-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.tsp-user-expand-btn[data-expanded] svg {
+  transform: rotate(180deg);
+}
+.tsp-user-raw-view {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  color: var(--text);
+}
+.tsp-assistant-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: calc(var(--space-1) * -1);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tsp-col[data-role="omp.assistant"]:hover .tsp-assistant-actions,
+.tsp-assistant-actions:focus-within {
+  opacity: 1;
+}
+.tsp-assistant-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.tsp-assistant-copy-btn:hover,
+.tsp-assistant-copy-btn[data-copied] {
+  color: var(--accent);
+  background: var(--bg-hover);
+}

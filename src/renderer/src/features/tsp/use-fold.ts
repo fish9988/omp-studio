@@ -2,10 +2,10 @@
 // 记在 (任务, surface, 父节点, key 或 id) 上——同一父节点下删掉再加一个同 key 的节点，折叠状态保留。
 // `collapsed` 属性是起始状态：用户翻过之后本地状态说了算，直到程序发来一个不同的 collapsed 值才重置。
 import { useCallback, useEffect } from "react";
+import type { DocNode } from "../../../../shared/tsp/document.ts";
 import { createStore, useStoreValue } from "../../store/create-store.ts";
 import type { NodeProps } from "./node-props.ts";
 import { onTspDocumentDropped } from "./tsp-store.ts";
-
 interface Fold {
   /** 用户翻的时候程序给的 collapsed 值（用来识别"程序发了不同的值"）。 */
   prop: boolean;
@@ -52,4 +52,21 @@ export function useFold(props: NodeProps, initial: boolean): [collapsed: boolean
     );
   }, [collapsed, key, initial, ctx, node.id, nodeKey]);
   return [collapsed, toggle];
+}
+
+/** 批量展开或收起一组节点（用于过程组的「展开全部详情 / 收起全部详情」，对齐 pi-agent-desktop-more WorkDetailsMenu）。 */
+export function setNodesFolded(
+  taskId: string,
+  sf: string,
+  nodes: readonly { node: DocNode; initialCollapsed: boolean }[],
+  collapsed: boolean,
+): void {
+  if (nodes.length === 0) return;
+  const next = { ...folds.get() };
+  for (const { node, initialCollapsed } of nodes) {
+    const key = typeof node.p.key === "string" ? node.p.key : node.id;
+    const fullKey = `${taskId}\u0000${sf}\u0000${node.parent ?? ""}\u0000${key}`;
+    next[fullKey] = { prop: initialCollapsed, value: collapsed };
+  }
+  folds.set(next);
 }
