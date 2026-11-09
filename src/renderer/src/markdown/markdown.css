@@ -69,7 +69,7 @@
   margin-top: var(--space-1-5);
 }
 .md li::marker {
-  color: var(--text-3);
+  color: var(--text-2);
 }
 /* 有序列表的序号是 li 里的真文字（render.ts 的 .md-ol-n），复制选中文字时带得上；位置照原生 ::marker：右对齐贴在内容左边。 */
 .md ol > li {
@@ -81,8 +81,12 @@
   right: 100%;
   white-space: pre;
   padding-right: var(--space-1);
-  color: var(--text-3);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+.md ol > li:has(> strong:first-of-type) > .md-ol-n,
+.md ol > li:has(> p:first-child > strong:first-child) > .md-ol-n {
+  font-weight: var(--fw-strong);
 }
 .md li > ul,
 .md li > ol {
@@ -137,13 +141,13 @@
 /* 行内代码胶囊：复刻 dsh-claude-style typography.css（1px 细边框 + 浅底色 + 紧凑行高） */
 .md-code-inline {
   font-family: var(--font-mono);
-  font-size: calc(1em - 1.5px);
-  line-height: 1.25;
-  padding: 1px 5px;
+  font-size: calc(1em - 1px);
+  line-height: 1.2;
+  padding: 1px 4px;
   background: var(--bg-sunken);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 /* 反重力风格可点击文件胶囊（图 6：带 JS / TS / {} / M↓ 语言彩色前缀徽标，点击在右侧栏预览） */

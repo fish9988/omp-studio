@@ -36,22 +36,50 @@
 @font-face {
   font-family: "Anthropic Sans";
   src: url("./fonts/AnthropicSansWebText.ttf") format("truetype");
-  font-weight: 300 800;
+  font-weight: 400;
   font-style: normal;
   font-display: block;
 }
 @font-face {
   font-family: "Anthropic Serif";
   src: url("./fonts/AnthropicSerifWebText.ttf") format("truetype");
-  font-weight: 300 800;
+  font-weight: 400;
   font-style: normal;
   font-display: block;
 }
 @font-face {
   font-family: "Anthropic Mono";
   src: url("./fonts/AnthropicMonoWeb.ttf") format("truetype");
-  font-weight: 300 800;
+  font-weight: 400;
   font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Claude Style Inter";
+  src: url("./fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Claude Style Noto Serif";
+  src: url("./fonts/NotoSerifVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./fonts/JetBrainsMonoVariable.ttf") format("truetype-variations");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./fonts/JetBrainsMonoItalicVariable.ttf") format("truetype-variations");
+  font-weight: 100 800;
+  font-style: italic;
   font-display: block;
 }
 @font-face {
@@ -64,22 +92,25 @@
 
 /* ───────────────────────── 非颜色 token（深浅共用） ───────────────────────── */
 :root {
-  /* 字体（仓库所有者 2026-10-21 定，照 Tern）：正文 Geist，代码 Geist Mono，中文微软雅黑 UI。
-     Latin 在前、CJK 在后，逐字符回退：Geist 没有的汉字落到微软雅黑 UI / 苹方；其余系统字体只在字体文件没读到时兜底 */
+  /* 1:1 复刻 dsh-claude-style tokens.json 的字体栈：
+     - 界面 UI：Anthropic Sans + Claude Style Inter + 思源黑体/苹方/微软雅黑（不用压缩字面的 Microsoft YaHei UI）
+     - 对话正文（--font-display）：Anthropic Serif + Claude Style Noto Serif + Georgia + 思源黑体/苹方/微软雅黑
+     - 代码等宽（--font-mono）：Anthropic Mono + JetBrains Mono + Geist Mono + 思源黑体/苹方/微软雅黑 */
   --font-sans:
-    "Anthropic Sans", "Geist", "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
-    "SF Pro Text", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC",
+    "Anthropic Sans", "Claude Style Inter", "Noto Sans SC", "Source Han Sans SC", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial,
     "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
-  --font-serif: "Anthropic Serif", Georgia, "Noto Serif CJK SC", "Songti SC", "SimSun", serif;
+  --font-serif:
+    "Anthropic Serif", "Claude Style Noto Serif", Georgia, "Times New Roman", "Noto Sans SC", "Source Han Sans SC",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", serif;
   --font-display:
-    "Anthropic Serif", "Anthropic Sans", "Geist", "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI",
-    system-ui, -apple-system, "SF Pro Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC",
-    "Noto Sans CJK SC", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", serif;
+    "Anthropic Serif", "Claude Style Noto Serif", Georgia, "Times New Roman", "Noto Sans SC", "Source Han Sans SC",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji",
+    sans-serif;
   --font-mono:
-    "Anthropic Mono", "Geist Mono", "Cascadia Code", "Cascadia Mono", Consolas, "SFMono-Regular", Menlo,
-    "Microsoft YaHei UI", "PingFang SC", "Noto Sans Mono CJK SC", "Segoe UI Emoji", "Apple Color Emoji",
-    "Noto Color Emoji", monospace;
-
+    "Anthropic Mono", "JetBrains Mono", "Geist Mono", "Noto Sans SC", "Source Han Sans SC", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", ui-monospace, "SF Mono", "Fira Code", Consolas, "Liberation Mono", Menlo,
+    Courier, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", monospace;
   /* 字号 / 行高（px，行高用像素值，避免嵌套漂移） */
   --fs-2xs: 11px;
   --lh-2xs: 16px;
