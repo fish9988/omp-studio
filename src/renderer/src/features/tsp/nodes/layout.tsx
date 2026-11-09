@@ -131,10 +131,12 @@ function AssistantCol(props: NodeProps) {
   const index = useBareTurnIndex(taskId, sf, props.node.id, turnCount, running);
   const footer = useSessionExtras(taskId, (extras) => (index >= 0 ? (extras.turns[index] ?? null) : null));
   const text = useMemo(() => (footer === null ? null : formatTurnFooter(footer)), [footer]);
-  // omp.thinking 节点已由 MainFlow 统一提取进上方的 ProcessGroup 单列卡片渲染，这里只画正式回答与脚注。
+  // omp.thinking 与工具读取的 media/image 节点已由 MainFlow 统一提取进上方的 ProcessGroup 单列卡片渲染，这里只画正式回答与脚注。
   const nonThoughtIds = props.node.c.filter((id) => {
     const child = peekTspNode(taskId, sf, id);
-    const role = child?.p["role"];
+    if (!child) return false;
+    if (child.k === "media" || child.k === "image") return false;
+    const role = child.p["role"];
     return !(typeof role === "string" && role.startsWith("omp.thinking"));
   });
   const blank = nonThoughtIds.length === 0 && text === null;

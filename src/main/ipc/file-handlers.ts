@@ -45,22 +45,9 @@ export const fileHandlers: HandlerGroup<"listProjectFiles" | "readPreviewFile" |
     const raw = parseString(relPath, "relPath", 1024);
     const direct = await readPreviewFile(cwd, raw);
     if (direct.kind !== "missing") return direct;
-    // 聊天正文里的行内文件胶囊或工具行常只写文件名（如 `tokens.css`）或子仓库相对路径（如 `src/renderer/styles/tokens.css`）；
-    // 当直接相对路径不存在时，在当前工作区目录树内按路径后缀定位唯一匹配文件。
     if (!path.isAbsolute(raw) && !raw.includes("..") && !raw.startsWith("~")) {
-      const wanted = raw
-        .replace(/\\/g, "/")
-        .replace(/^\.?\//, "")
-        .toLowerCase();
-      const base = path.posix.basename(wanted);
-      if (base !== "") {
-        const candidates = await index.search(cwd, base).catch(() => [] as string[]);
-        const match = candidates.find((c) => {
-          const norm = c.replace(/\\/g, "/").toLowerCase();
-          return norm === wanted || norm.endsWith(`/${wanted}`);
-        });
-        if (match !== undefined) return readPreviewFile(cwd, match);
-      }
+      const matched = await index.findBySuffix(cwd, raw);
+      if (matched !== null) return readPreviewFile(cwd, matched);
     }
     return direct;
   },

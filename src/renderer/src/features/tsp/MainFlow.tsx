@@ -8,11 +8,12 @@ import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocNode, DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
 import { useShellValue } from "../../app/shell-store.ts";
-import { ChevronDown, External, FileIcon } from "../../icons.tsx";
+import { ChevronDown, Code, External, FileIcon, Globe } from "../../icons.tsx";
 import { currentLocale } from "../../store/settings-store.ts";
 import { openFilePreview, openInlineArtifact, type InlineArtifact } from "../file-preview/index.ts";
 import { Clamp } from "./Clamp.tsx";
 import { formatElapsed } from "./fmt.ts";
+import { TspIcon } from "./icons.tsx";
 import type { TspContext } from "./node-props.ts";
 import { useSessionExtras } from "./session-extras-store.ts";
 import { cleanGlyphs } from "./span-tokens.ts";
@@ -20,13 +21,15 @@ import { TspNode } from "./TspChildren.tsx";
 import { useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
 const STATUS_NOTE_LINES = 2;
 
-type LangBadgeKind = "js" | "ts" | "brace" | "md" | "html" | "py" | "img" | "file";
+type DeliverableCategory = "markdown" | "html" | "vector" | "image" | "pdf" | "data" | "style" | "code";
+type LangBadgeKind = "ts" | "tsx" | "js" | "py" | "css" | "json" | "md" | "html" | "svg" | "img" | "pdf" | "code";
 
 interface DeliverableItem {
   key: string;
   name: string;
   dirPath: string;
-  badge: "SVG" | "HTML" | "MD" | "FILE";
+  category: DeliverableCategory;
+  badge: "MD" | "HTML" | "SVG" | "IMG" | "PDF" | "JSON" | "CSS" | "CODE";
   langBadge: { label: string; kind: LangBadgeKind };
   subtitleZh: string;
   subtitleEn: string;
@@ -57,6 +60,14 @@ const EMPTY_DELIVERABLES: readonly DeliverableItem[] = [];
 function isThinkingSection(surface: DocSurface, id: string): boolean {
   const node = surface.nodes.get(id);
   const role = node?.p["role"];
+  return typeof role === "string" && role.startsWith("omp.thinking");
+}
+
+function isHoistedProcessChild(surface: DocSurface, id: string): boolean {
+  const node = surface.nodes.get(id);
+  if (!node) return false;
+  if (node.k === "media" || node.k === "image") return true;
+  const role = node.p["role"];
   return typeof role === "string" && role.startsWith("omp.thinking");
 }
 
@@ -124,14 +135,53 @@ function isProcessNodeRunning(surface: DocSurface, id: string): boolean {
 }
 
 function cleanDeliverablePath(raw: string): string {
-  return raw
-    .replace(/^file:\/\//i, "")
-    .replace(/:\d+(?:[-:]\d+)?$/, "")
-    .replace(/#L\d+.*$/i, "")
+  let p = raw.trim();
+  if (/^file:\/\//i.test(p)) {
+    try {
+      p = decodeURIComponent(p.replace(/^file:\/\//i, ""));
+    } catch {
+      p = p.replace(/^file:\/\//i, "");
+    }
+    if (/^\/+[A-Za-z]:/.test(p)) p = p.replace(/^\/+/, "");
+  } else {
+    try {
+      p = decodeURIComponent(p);
+    } catch {
+      // 保留原样
+    }
+  }
+  return p
+    .replace(/\\/g, "/")
+    .replace(/^\/+(?=[A-Za-z]:\/)/, "")
+    .replace(/#L\d+(?:-L?\d+)?.*$/i, "")
+    .replace(/(?<!^[A-Za-z]):\d+(?:[:-]\d+)?$/, "")
     .trim();
 }
 
+function toWorkspaceRelative(normalizedPath: string, hrefClean: string): { filePath: string; dirPath: string } {
+  const isAbs = /^[A-Za-z]:\//.test(normalizedPath) || normalizedPath.startsWith("/");
+  const candidate = (!isAbs && normalizedPath !== "" ? normalizedPath : hrefClean || normalizedPath)
+    .replace(/^\/+(?=[A-Za-z]:\/)/, "")
+    .replace(/^\.\//, "");
+
+  let displayRel = candidate;
+  if (/^[A-Za-z]:\//.test(displayRel) || displayRel.startsWith("/")) {
+    const markerMatch = /\/((?:src|docs|test|tests|packages|public|scripts|resources|fixtures)\/.*)$/i.exec(displayRel);
+    if (markerMatch?.[1]) {
+      displayRel = markerMatch[1];
+    } else if (/probe-user/i.test(displayRel)) {
+      const parts = displayRel.split("/").filter(Boolean);
+      displayRel = parts[parts.length - 1] ?? displayRel;
+    }
+  }
+  const lastSlash = displayRel.lastIndexOf("/");
+  const dirPath = lastSlash > 0 ? displayRel.slice(0, lastSlash) : "";
+  const filePath = displayRel;
+  return { filePath, dirPath };
+}
+
 function fileBadgeMeta(filePath: string): {
+  category: DeliverableCategory;
   badge: DeliverableItem["badge"];
   langBadge: { label: string; kind: LangBadgeKind };
   subtitleZh: string;
@@ -139,57 +189,90 @@ function fileBadgeMeta(filePath: string): {
 } {
   const lower = filePath.toLowerCase();
   const ext = lower.split(".").pop() ?? "";
-  const langBadge: { label: string; kind: LangBadgeKind } =
-    ext === "js" || ext === "mjs" || ext === "cjs" || ext === "jsx"
-      ? { label: "JS", kind: "js" }
-      : ext === "ts" || ext === "mts" || ext === "cts" || ext === "tsx"
-        ? { label: "TS", kind: "ts" }
-        : ext === "json" || ext === "jsonc" || ext === "css" || ext === "scss" || ext === "less"
-          ? { label: "{}", kind: "brace" }
-          : ext === "md" || ext === "markdown" || ext === "mdx"
-            ? { label: "M↓", kind: "md" }
-            : ext === "html" || ext === "htm" || ext === "xml" || ext === "vue"
-              ? { label: "</>", kind: "html" }
-              : ext === "py"
-                ? { label: "PY", kind: "py" }
-                : ext === "svg" || ext === "png" || ext === "webp" || ext === "jpg" || ext === "jpeg"
-                  ? { label: "IMG", kind: "img" }
-                  : { label: ext ? ext.slice(0, 4).toUpperCase() : "FILE", kind: "file" };
-
-  if (lower.endsWith(".svg")) {
+  if (ext === "svg") {
     return {
+      category: "vector",
       badge: "SVG",
-      langBadge,
-      subtitleZh: "SVG 矢量图形 · 点击在侧栏渲染预览",
+      langBadge: { label: "SVG", kind: "svg" },
+      subtitleZh: "SVG 矢量图形 · 点击缩放与源码预览",
       subtitleEn: "SVG vector graphic · Click to preview",
     };
   }
-  if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+  if (ext === "html" || ext === "htm") {
     return {
+      category: "html",
       badge: "HTML",
-      langBadge,
-      subtitleZh: "HTML 网页文档 · 点击在侧栏渲染预览",
-      subtitleEn: "HTML document · Click to preview",
+      langBadge: { label: "</>", kind: "html" },
+      subtitleZh: "交互式网页 · 点击在沙箱中运行预览",
+      subtitleEn: "Interactive HTML · Click to preview",
     };
   }
-  if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".mdx")) {
+  if (ext === "md" || ext === "markdown" || ext === "mdx") {
     return {
+      category: "markdown",
       badge: "MD",
-      langBadge,
-      subtitleZh: "Markdown 文档 · 点击在侧栏渲染预览",
+      langBadge: { label: "M↓", kind: "md" },
+      subtitleZh: "Markdown 文档 · 点击渲染排版预览",
       subtitleEn: "Markdown document · Click to preview",
     };
   }
+  if (ext === "png" || ext === "webp" || ext === "jpg" || ext === "jpeg" || ext === "gif") {
+    return {
+      category: "image",
+      badge: "IMG",
+      langBadge: { label: "IMG", kind: "img" },
+      subtitleZh: "图像资产 · 点击在侧栏画布查看",
+      subtitleEn: "Image asset · Click to view",
+    };
+  }
+  if (ext === "pdf") {
+    return {
+      category: "pdf",
+      badge: "PDF",
+      langBadge: { label: "PDF", kind: "pdf" },
+      subtitleZh: "PDF 文档 · 点击打开预览",
+      subtitleEn: "PDF document · Click to preview",
+    };
+  }
+  if (ext === "css" || ext === "scss" || ext === "less") {
+    return {
+      category: "style",
+      badge: "CSS",
+      langBadge: { label: "CSS", kind: "css" },
+      subtitleZh: "样式表 · 点击查看样式定义",
+      subtitleEn: "Stylesheet · Click to view",
+    };
+  }
+  if (ext === "json" || ext === "jsonc" || ext === "yaml" || ext === "yml" || ext === "toml") {
+    return {
+      category: "data",
+      badge: "JSON",
+      langBadge: { label: "{}", kind: "json" },
+      subtitleZh: "配置与数据 · 点击查看结构",
+      subtitleEn: "Config & data · Click to view",
+    };
+  }
+  const langBadge: { label: string; kind: LangBadgeKind } =
+    ext === "tsx" || ext === "jsx"
+      ? { label: ext.toUpperCase(), kind: "tsx" }
+      : ext === "ts" || ext === "mts" || ext === "cts"
+        ? { label: "TS", kind: "ts" }
+        : ext === "js" || ext === "mjs" || ext === "cjs"
+          ? { label: "JS", kind: "js" }
+          : ext === "py"
+            ? { label: "PY", kind: "py" }
+            : { label: ext ? ext.slice(0, 4).toUpperCase() : "CODE", kind: "code" };
   return {
-    badge: "FILE",
+    category: "code",
+    badge: "CODE",
     langBadge,
-    subtitleZh: "已变更文件 · 点击在侧栏打开预览",
-    subtitleEn: "Modified file · Click to preview",
+    subtitleZh: "源码文件 · 点击在侧栏查看",
+    subtitleEn: "Source code · Click to view",
   };
 }
 
 function isDeliverableDocPath(filePath: string): boolean {
-  return /\.(svg|html?|md|markdown|mdx|png|webp|jpe?g)$/i.test(filePath);
+  return /\.(svg|html?|md|markdown|mdx|png|webp|jpe?g|pdf)$/i.test(filePath);
 }
 function parseToolDiffStats(
   surface: DocSurface,
@@ -267,26 +350,19 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
     if (operation === "read" && !isDeliverableDocPath(cleaned)) return;
     const normalized = cleaned.replace(/\\/g, "/");
     const hrefClean = hrefPath ? cleanDeliverablePath(hrefPath).replace(/\\/g, "/") : "";
-    // 跳过系统临时目录（AppData/Local/Temp 或 /tmp）及 ~ 开头的外部临时文件，避免生成无法在工作区内预览的失效卡片
-    if (
-      normalized.startsWith("~") ||
-      /AppData\/Local\/Temp|\/tmp\//i.test(normalized) ||
-      /AppData\/Local\/Temp|\/tmp\//i.test(hrefClean)
-    ) {
+    // 跳过 rawPath 自身指向系统临时目录（AppData/Local/Temp 或 /tmp）及 ~ 开头的外部临时截图文件
+    if (normalized.startsWith("~") || /AppData\/Local\/Temp|\/tmp\//i.test(normalized)) {
       return;
     }
-    const parts = normalized.split("/").filter(Boolean);
-    const baseName = parts[parts.length - 1] ?? normalized;
-    const isAbs = /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith("/");
-    const rel = isAbs ? (/probe-user/i.test(normalized) ? baseName : normalized) : normalized;
-    const dirFromHref = hrefClean.includes("/") ? hrefClean.slice(0, hrefClean.lastIndexOf("/")) : "";
-    const dirFromRel = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
-    const dirPath = dirFromHref ? `/${dirFromHref.replace(/^\/+/, "")}` : dirFromRel;
-    const meta = fileBadgeMeta(rel);
+    const { filePath, dirPath } = toWorkspaceRelative(normalized, hrefClean);
+    const parts = filePath.split("/").filter(Boolean);
+    const baseName = parts[parts.length - 1] ?? filePath;
+    const meta = fileBadgeMeta(filePath);
     items.push({
-      key: `file:${rel}`,
+      key: `file:${filePath.toLowerCase()}`,
       name: baseName,
       dirPath,
+      category: meta.category,
       badge: meta.badge,
       langBadge: meta.langBadge,
       subtitleZh: meta.subtitleZh,
@@ -296,7 +372,7 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
       removed: stats.removed,
       ...(stats.bodyNodeId !== undefined ? { bodyNodeId: stats.bodyNodeId } : {}),
       ...(stats.bodyKind !== undefined ? { bodyKind: stats.bodyKind } : {}),
-      filePath: rel,
+      filePath,
     });
   };
 
@@ -355,6 +431,7 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
             key: `art:${artifactId}`,
             name,
             dirPath: "",
+            category: meta.category,
             badge: meta.badge,
             langBadge: meta.langBadge,
             subtitleZh: meta.subtitleZh,
@@ -412,10 +489,12 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
   let runTools = 0;
   let runDurationMs = 0;
   let runRunning = false;
-  let runDeliverables: DeliverableItem[] = [];
+  // 同一轮用户对话（从一条 omp.user 到下一条 omp.user）内的全部交付文件与代码变更统一收集，
+  // 仅在该轮最终回答末尾唯一输出一次，绝不在中途重复打断对话流！
+  let turnDeliverables: DeliverableItem[] = [];
   let currentTurnIndex = -1;
 
-  const flush = (fallbackTurnMs = 0, hasFollowingAnswer = false) => {
+  const flushProcess = (fallbackTurnMs = 0, hasFollowingAnswer = false) => {
     if (runIds.length === 0) return;
     if (runThoughts + runTools >= 1) {
       out.push({
@@ -427,7 +506,7 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
         turnIndex: currentTurnIndex,
         running: runRunning,
         settled: !runRunning && hasFollowingAnswer,
-        deliverables: dedupeDeliverables(runDeliverables),
+        deliverables: EMPTY_DELIVERABLES,
       });
     } else {
       for (const id of runIds) out.push({ kind: "item", id, deliverables: EMPTY_DELIVERABLES });
@@ -437,45 +516,68 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
     runTools = 0;
     runDurationMs = 0;
     runRunning = false;
-    runDeliverables = [];
   };
+
+  const attachTurnDeliverablesToLast = () => {
+    if (turnDeliverables.length === 0 || out.length === 0) {
+      turnDeliverables = [];
+      return;
+    }
+    const lastIdx = out.length - 1;
+    const last = out[lastIdx]!;
+    // 仅当本轮已产生正式回答（或过程组已结束）时，把整轮汇总的交付物与 Diff 面板挂在最末尾的块上
+    if (last.kind === "item" || (last.kind === "process" && !last.running)) {
+      out[lastIdx] = {
+        ...last,
+        deliverables: dedupeDeliverables([...last.deliverables, ...turnDeliverables]),
+      };
+    }
+    turnDeliverables = [];
+  };
+
   for (const id of main.c) {
     const node = surface.nodes.get(id);
     if (!node) continue;
     if (node.k === "card" && node.p["role"] === "omp.user") {
-      flush(0, true);
+      flushProcess(0, true);
+      attachTurnDeliverablesToLast();
       currentTurnIndex += 1;
       out.push({
         kind: "item",
         id,
-        deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+        deliverables: EMPTY_DELIVERABLES,
       });
       continue;
     }
-    // 1. 工具调用（除 ask 外）：直接进过程组
+    // 1. 工具读取图片产生的顶层 media / image 节点：已有对应的 Read 工具行，跳过冗余胶囊且绝不拆断过程组！
+    if (node.k === "media" || node.k === "image") {
+      continue;
+    }
+    // 2. 工具调用（除 ask 外）：全部收进当前过程组。
     if (node.k === "tool" && node.p["role"] !== "omp.tool.ask") {
       runIds.push(id);
       runTools += 1;
       runDurationMs += nodeDurationMs(surface, id);
       if (isProcessNodeRunning(surface, id)) runRunning = true;
-      runDeliverables.push(...extractNodeDeliverables(surface, id));
+      turnDeliverables.push(...extractNodeDeliverables(surface, id));
       continue;
     }
-    // 2. 助手容器（omp.assistant）：把其中的 omp.thinking 思考块提取进过程组；如果还有正式回答（md / error / usage），
-    //    先结算过程组，再画助手容器（AssistantCol 里会跳过已被过程组接管的 omp.thinking 子节点）。
+    // 3. 助手容器（omp.assistant）：把其中的 omp.thinking 子节点提取进过程组（忽略冗余 media/image 子节点）；
+    //    如果还有正式回答（md / error / usage），先结算过程组，再画助手容器。
     if (node.k === "col" && node.p["role"] === "omp.assistant") {
-      const thoughtIds = node.c.filter((cid) => isThinkingSection(surface, cid));
-      const otherIds = node.c.filter((cid) => !isThinkingSection(surface, cid));
-      if (thoughtIds.length > 0) {
-        runIds.push(...thoughtIds);
-        runThoughts += thoughtIds.length;
-        for (const tid of thoughtIds) {
+      const thinkingIds = node.c.filter((cid) => isThinkingSection(surface, cid));
+      const otherIds = node.c.filter((cid) => !isHoistedProcessChild(surface, cid));
+      if (thinkingIds.length > 0) {
+        runIds.push(...thinkingIds);
+        runThoughts += thinkingIds.length;
+        for (const tid of thinkingIds) {
           runDurationMs += nodeDurationMs(surface, tid);
           if (isProcessNodeRunning(surface, tid)) runRunning = true;
         }
       }
+      turnDeliverables.push(...extractNodeDeliverables(surface, id));
       if (otherIds.length === 0) {
-        // 纯思考或空助手容器：留在当前过程组里继续往后合并
+        // 纯思考或仅含工具图片的中间助手容器：留在当前过程组里继续往后合并，不打断过程组！
         continue;
       }
       let turnUsageMs = 0;
@@ -485,24 +587,24 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
           turnUsageMs = parseDurationTextMs(extractPlainText(surface, oid));
         }
       }
-      const mergedDeliverables = dedupeDeliverables([...runDeliverables, ...extractNodeDeliverables(surface, id)]);
-      runDeliverables = [];
-      flush(turnUsageMs, true);
+      flushProcess(turnUsageMs, true);
       out.push({
         kind: "item",
         id,
-        deliverables: mergedDeliverables,
+        deliverables: EMPTY_DELIVERABLES,
       });
       continue;
     }
-    flush();
+    flushProcess();
+    turnDeliverables.push(...extractNodeDeliverables(surface, id));
     out.push({
       kind: "item",
       id,
-      deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+      deliverables: EMPTY_DELIVERABLES,
     });
   }
-  flush();
+  flushProcess();
+  attachTurnDeliverablesToLast();
   return out;
 }
 
@@ -636,11 +738,39 @@ function AntigravityFileRow({ item, ctx }: { item: DeliverableItem; ctx: TspCont
   );
 }
 
+function DeliverableCardVisual({ item }: { item: DeliverableItem }) {
+  if (item.category === "vector" && item.artifact?.ext === "svg") {
+    const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(item.artifact.content)}`;
+    return (
+      <span className="tsp-dsh-card-thumb" data-category={item.category} aria-hidden="true">
+        <img src={svgUrl} alt="" loading="lazy" draggable={false} />
+      </span>
+    );
+  }
+  return (
+    <span className="tsp-dsh-card-icon" data-category={item.category} data-badge={item.badge} aria-hidden="true">
+      {item.category === "html" ? (
+        <Globe size={18} />
+      ) : item.category === "markdown" ? (
+        <TspIcon name="markdown" size={18} />
+      ) : item.category === "vector" ? (
+        <TspIcon name="sparkle" size={18} />
+      ) : item.category === "image" ? (
+        <TspIcon name="image" size={18} />
+      ) : item.category === "code" || item.category === "style" || item.category === "data" ? (
+        <Code size={18} />
+      ) : (
+        <FileIcon size={18} />
+      )}
+    </span>
+  );
+}
+
 /**
- * 图 5 DSH 风格的双列交付文件卡片（针对 .svg / .html / .md / 图片等交付物，点击直接在侧边栏打开查看）：
- * - 左侧 38×38 圆角柔和着色图标块
- * - 中间粗体文件名 + 副标题描述
- * - 右侧 [文件夹/侧栏预览] 与 [v 展开] 两个精致方框按钮
+ * 图 5 DSH 风格的多类型交付文件卡片（针对 Markdown / HTML / SVG / 图片 / PDF 等不同类型呈现差异化视觉）：
+ * - 左侧 40×40 类型专属圆角着色图标块（或 SVG 实时缩略图）
+ * - 中间粗体文件名 + 类型胶囊徽标（MD / HTML / SVG / IMG / PDF）+ 目录与类型描述
+ * - 右侧 [侧栏打开] 与 [v 内联预览] 两个精致方框按钮
  */
 function DshDeliverableCard({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) {
   const zh = currentLocale() === "zh-CN";
@@ -654,14 +784,26 @@ function DshDeliverableCard({ item, ctx }: { item: DeliverableItem; ctx: TspCont
   };
 
   return (
-    <div className="tsp-dsh-card-wrap">
-      <div className="tsp-dsh-card" data-badge={item.badge} data-testid="tsp-deliverable-card" onClick={openInSidebar}>
-        <span className="tsp-dsh-card-icon" data-badge={item.badge} aria-hidden="true">
-          <FileIcon size={18} />
-        </span>
+    <div className="tsp-dsh-card-wrap" data-category={item.category}>
+      <div
+        className="tsp-dsh-card"
+        data-category={item.category}
+        data-badge={item.badge}
+        data-testid="tsp-deliverable-card"
+        onClick={openInSidebar}
+      >
+        <DeliverableCardVisual item={item} />
         <span className="tsp-dsh-card-main">
-          <span className="tsp-dsh-card-title">{item.name}</span>
-          <span className="tsp-dsh-card-sub">{zh ? item.subtitleZh : item.subtitleEn}</span>
+          <span className="tsp-dsh-card-title-row">
+            <span className="tsp-dsh-card-title">{item.name}</span>
+            <span className="tsp-dsh-card-pill" data-category={item.category}>
+              {item.badge}
+            </span>
+          </span>
+          <span className="tsp-dsh-card-sub">
+            {item.dirPath ? `${item.dirPath} · ` : ""}
+            {zh ? item.subtitleZh : item.subtitleEn}
+          </span>
         </span>
         <span className="tsp-dsh-card-actions">
           <button
@@ -699,7 +841,6 @@ function DshDeliverableCard({ item, ctx }: { item: DeliverableItem; ctx: TspCont
     </div>
   );
 }
-
 /**
  * 结合图 5（DSH 双列交付物卡片）与图 6（反重力 Antigravity 可展开/可搜索的「N files changed +M -K」变更面板）：
  * - 面板整体默认展开（panelOpen = true），支持按文件名/路径搜索过滤，右侧带「评审」按钮；
@@ -799,7 +940,6 @@ function ProcessGroup({
   durationMs,
   turnIndex,
   running,
-  settled,
   deliverables,
   after,
   ctx,
@@ -810,22 +950,11 @@ function ProcessGroup({
   durationMs: number;
   turnIndex: number;
   running: boolean;
-  settled: boolean;
   deliverables: readonly DeliverableItem[];
   after: ReadonlyMap<string, StatusNote[]>;
   ctx: TspContext;
 }) {
-  // 运行中默认展开；当最终正式回答到达（settled 变为 true）时自动全部收起。用户手动点过则优先尊重用户当前阶段的选择。
-  const [userFolded, setUserFolded] = useState<boolean | null>(null);
-  const prevSettled = useRef(settled);
-  useEffect(() => {
-    if (prevSettled.current !== settled) {
-      prevSettled.current = settled;
-      setUserFolded(null);
-    }
-  }, [settled]);
-  const folded = userFolded ?? settled;
-
+  const [folded, setFolded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const layout = useShellValue("processRows") ?? "column";
@@ -850,7 +979,7 @@ function ProcessGroup({
         className="tsp-process-summary"
         data-running={running || undefined}
         aria-expanded={!folded}
-        onClick={() => setUserFolded(!folded)}
+        onClick={() => setFolded((f) => !f)}
         data-testid="tsp-process-summary"
       >
         <span className="tsp-process-summary-text">{label}</span>
@@ -868,25 +997,26 @@ function ProcessGroup({
           <ChevronDown />
         </span>
       </button>
-      <div
-        ref={bodyRef}
-        className="tsp-process-group-body"
-        data-layout={layout}
-        hidden={folded}
-        onScroll={(event) => {
-          const el = event.currentTarget;
-          stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-        }}
-      >
-        {ids.map((id) => (
-          <Fragment key={id}>
-            <TspNode id={id} ctx={ctx} />
-            {(after.get(id) ?? []).map((note, i) => (
-              <StatusLine key={`s-${id}-${i}`} note={note} />
-            ))}
-          </Fragment>
-        ))}
-      </div>
+      {!folded && (
+        <div
+          ref={bodyRef}
+          className="tsp-process-group-body"
+          data-layout={layout}
+          onScroll={(event) => {
+            const el = event.currentTarget;
+            stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          }}
+        >
+          {ids.map((id) => (
+            <Fragment key={id}>
+              <TspNode id={id} ctx={ctx} />
+              {(after.get(id) ?? []).map((note, i) => (
+                <StatusLine key={`s-${id}-${i}`} note={note} />
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      )}
       <DeliverableShelf ctx={ctx} items={deliverables} />
     </div>
   );
@@ -919,7 +1049,6 @@ export const MainFlow = memo(function MainFlow({ taskId, sf, ctx }: { taskId: Ta
           durationMs={seg.durationMs}
           turnIndex={seg.turnIndex}
           running={seg.running}
-          settled={seg.settled}
           deliverables={seg.deliverables}
           after={after}
           ctx={ctx}

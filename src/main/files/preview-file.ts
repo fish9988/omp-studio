@@ -21,13 +21,29 @@ const imageMime: Record<string, string> = {
 
 const isHtml = (ext: string): boolean => ext === ".html" || ext === ".htm";
 
-/** 绝对路径落在 cwd 内时换算成相对路径（agent 的工具参数常是绝对路径）；其余原样交给 resolveInside 校验。 */
+/** 绝对路径（含 `file:///C:/...` 或前导 `/C:/...`）落在 cwd 内时换算成相对路径；其余原样交给 resolveInside 校验。 */
 function toRelative(cwd: string, input: string): string {
-  if (!path.isAbsolute(input)) return input;
-  const relative = path.relative(cwd, input);
-  return relative === "" || relative.startsWith("..") || path.isAbsolute(relative) ? input : relative;
+  let cleaned = input.trim();
+  if (/^file:\/\//i.test(cleaned)) {
+    try {
+      cleaned = decodeURIComponent(cleaned.replace(/^file:\/\//i, ""));
+    } catch {
+      cleaned = cleaned.replace(/^file:\/\//i, "");
+    }
+  }
+  if (/^\/+[A-Za-z]:[\\/]/.test(cleaned)) {
+    cleaned = cleaned.replace(/^\/+/, "");
+  }
+  cleaned = cleaned.replace(/#L\d+(?:-L?\d+)?.*$/i, "").replace(/(?<!^[A-Za-z]):\d+(?:[:-]\d+)?$/, "");
+  if (!path.isAbsolute(cleaned) && !path.win32.isAbsolute(cleaned)) return cleaned;
+  if (process.platform === "win32" && /^[a-zA-Z]:/.test(cwd) && /^[a-zA-Z]:/.test(cleaned)) {
+    if (cwd[0]!.toLowerCase() === cleaned[0]!.toLowerCase()) {
+      cleaned = cwd[0]! + cleaned.slice(1);
+    }
+  }
+  const relative = path.relative(cwd, cleaned);
+  return relative === "" || relative.startsWith("..") || path.isAbsolute(relative) ? cleaned : relative;
 }
-
 export async function readPreviewFile(cwd: string, input: string): Promise<PreviewFile> {
   const relPath = toRelative(cwd, input);
   const normalized = path.normalize(relPath);

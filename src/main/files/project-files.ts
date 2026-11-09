@@ -12,7 +12,7 @@ const MAX_QUERY_CHARS = 256;
 const MAX_WALK_DIRS = 5_000;
 const CACHE_TTL_MS = 10_000;
 const MAX_CACHED_DIRS = 8;
-const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
+const SKIPPED_DIRS = new Set(["node_modules", ".git", "out", "dist", ".omp", ".next", ".turbo"]);
 
 /**
  * 查询词的形状校验：渲染进程传来的不可信。查询词只用来匹配相对路径，但它是用户在 `@` 后面敲的路径，
@@ -184,5 +184,38 @@ export class ProjectFileIndex {
 
   async search(cwd: string, query: string): Promise<string[]> {
     return matchProjectFiles(await this.list(cwd), query);
+  }
+
+  /**
+   * 在完整工作区文件列表中按路径后缀或文件名精确寻址（不截断为 20 条），
+   * 解决当任务 cwd 在父目录、子仓库或行内只写文件名时 `readPreviewFile` 找不到文件的问题。
+   */
+  async findBySuffix(cwd: string, rawWanted: string): Promise<string | null> {
+    const wanted = rawWanted
+      .replaceAll("\\", "/")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/^\.\//, "")
+      .toLowerCase();
+    if (wanted === "") return null;
+    const all = await this.list(cwd).catch(() => [] as IndexedFile[]);
+    // 1. 完整相对路径或后缀匹配（如 `src/renderer/src/markdown/render.ts` 匹配 `omp-studio/src/renderer/src/markdown/render.ts`）
+    for (const item of all) {
+      if (item.lower === wanted || item.lower.endsWith(`/${wanted}`) || wanted.endsWith(`/${item.lower}`)) {
+        return item.path;
+      }
+    }
+    // 2. 纯文件名精确匹配（优先选 src/ 目录或最浅层）
+    if (!wanted.includes("/")) {
+      const matches = all.filter((item) => item.lower.slice(item.baseStart) === wanted);
+      if (matches.length > 0) {
+        matches.sort((a, b) => {
+          const aSrc = a.lower.includes("/src/") || a.lower.startsWith("src/") ? 0 : 1;
+          const bSrc = b.lower.includes("/src/") || b.lower.startsWith("src/") ? 0 : 1;
+          return aSrc - bSrc || a.depth - b.depth || a.path.length - b.path.length;
+        });
+        return matches[0]!.path;
+      }
+    }
+    return null;
   }
 }

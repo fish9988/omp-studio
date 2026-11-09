@@ -175,12 +175,14 @@ export function ComposerInput(props: ComposerInputProps) {
       const after = chipTouching(view, caret, "after");
       if (event.key === "Backspace" && before !== null) {
         event.preventDefault();
-        replaceView(view.text.slice(0, before.viewStart) + view.text.slice(before.viewEnd), before.start);
+        setDraft(draftKey, forceRemoveAttachment(getDraft(draftKey), before.kind, before.n));
+        requestCaret(draftKey, before.start);
         return;
       }
       if (event.key === "Delete" && after !== null) {
         event.preventDefault();
-        replaceView(view.text.slice(0, after.viewStart) + view.text.slice(after.viewEnd), after.start);
+        setDraft(draftKey, forceRemoveAttachment(getDraft(draftKey), after.kind, after.n));
+        requestCaret(draftKey, after.start);
         return;
       }
       if (!event.ctrlKey && !event.metaKey && !event.altKey) {
