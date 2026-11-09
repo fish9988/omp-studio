@@ -20,10 +20,16 @@ import { TspNode } from "./TspChildren.tsx";
 import { useTspDerived, useTspStatusNotes } from "./tsp-store.ts";
 const STATUS_NOTE_LINES = 2;
 
+type LangBadgeKind = "js" | "ts" | "brace" | "md" | "html" | "py" | "img" | "file";
+
 interface DeliverableItem {
   key: string;
   name: string;
+  dirPath: string;
   badge: "SVG" | "HTML" | "MD" | "FILE";
+  langBadge: { label: string; kind: LangBadgeKind };
+  subtitleZh: string;
+  subtitleEn: string;
   operation: "write" | "edit" | "read";
   added: number;
   removed: number;
@@ -125,18 +131,66 @@ function cleanDeliverablePath(raw: string): string {
     .trim();
 }
 
-function fileBadge(filePath: string): DeliverableItem["badge"] {
+function fileBadgeMeta(filePath: string): {
+  badge: DeliverableItem["badge"];
+  langBadge: { label: string; kind: LangBadgeKind };
+  subtitleZh: string;
+  subtitleEn: string;
+} {
   const lower = filePath.toLowerCase();
-  if (lower.endsWith(".svg")) return "SVG";
-  if (lower.endsWith(".html") || lower.endsWith(".htm")) return "HTML";
-  if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "MD";
-  return "FILE";
+  const ext = lower.split(".").pop() ?? "";
+  const langBadge: { label: string; kind: LangBadgeKind } =
+    ext === "js" || ext === "mjs" || ext === "cjs" || ext === "jsx"
+      ? { label: "JS", kind: "js" }
+      : ext === "ts" || ext === "mts" || ext === "cts" || ext === "tsx"
+        ? { label: "TS", kind: "ts" }
+        : ext === "json" || ext === "jsonc" || ext === "css" || ext === "scss" || ext === "less"
+          ? { label: "{}", kind: "brace" }
+          : ext === "md" || ext === "markdown" || ext === "mdx"
+            ? { label: "M↓", kind: "md" }
+            : ext === "html" || ext === "htm" || ext === "xml" || ext === "vue"
+              ? { label: "</>", kind: "html" }
+              : ext === "py"
+                ? { label: "PY", kind: "py" }
+                : ext === "svg" || ext === "png" || ext === "webp" || ext === "jpg" || ext === "jpeg"
+                  ? { label: "IMG", kind: "img" }
+                  : { label: ext ? ext.slice(0, 4).toUpperCase() : "FILE", kind: "file" };
+
+  if (lower.endsWith(".svg")) {
+    return {
+      badge: "SVG",
+      langBadge,
+      subtitleZh: "SVG 矢量图形 · 点击在侧栏渲染预览",
+      subtitleEn: "SVG vector graphic · Click to preview",
+    };
+  }
+  if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+    return {
+      badge: "HTML",
+      langBadge,
+      subtitleZh: "HTML 网页文档 · 点击在侧栏渲染预览",
+      subtitleEn: "HTML document · Click to preview",
+    };
+  }
+  if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".mdx")) {
+    return {
+      badge: "MD",
+      langBadge,
+      subtitleZh: "Markdown 文档 · 点击在侧栏渲染预览",
+      subtitleEn: "Markdown document · Click to preview",
+    };
+  }
+  return {
+    badge: "FILE",
+    langBadge,
+    subtitleZh: "已变更文件 · 点击在侧栏打开预览",
+    subtitleEn: "Modified file · Click to preview",
+  };
 }
 
 function isDeliverableDocPath(filePath: string): boolean {
-  return /\.(svg|html?|md|markdown)$/i.test(filePath);
+  return /\.(svg|html?|md|markdown|mdx|png|webp|jpe?g)$/i.test(filePath);
 }
-
 function parseToolDiffStats(
   surface: DocSurface,
   node: DocNode,
@@ -204,20 +258,31 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
 
   const pushFile = (
     rawPath: string,
+    hrefPath: string | undefined,
     operation: "write" | "edit" | "read",
     stats: { added: number; removed: number; bodyNodeId?: string; bodyKind?: "diff" | "code" },
   ) => {
     const cleaned = cleanDeliverablePath(rawPath);
     if (cleaned === "") return;
-    // read 工具仅提取可预览交付文档（.svg / .html / .md），而 write / edit 提取所有被创建或修改的文件以展示 DSH 文件行与 Diff
     if (operation === "read" && !isDeliverableDocPath(cleaned)) return;
-    const parts = cleaned.split(/[\\/]/).filter(Boolean);
-    const name = parts[parts.length - 1] ?? cleaned;
-    const rel = /^[a-zA-Z]:[\\/]/.test(cleaned) || cleaned.startsWith("/") ? name : cleaned;
+    const normalized = cleaned.replace(/\\/g, "/");
+    const parts = normalized.split("/").filter(Boolean);
+    const baseName = parts[parts.length - 1] ?? normalized;
+    const isAbs = /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith("/");
+    const rel = isAbs ? baseName : normalized;
+    const hrefClean = hrefPath ? cleanDeliverablePath(hrefPath).replace(/\\/g, "/") : "";
+    const dirFromHref = hrefClean.includes("/") ? hrefClean.slice(0, hrefClean.lastIndexOf("/")) : "";
+    const dirFromRel = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+    const dirPath = dirFromHref ? `/${dirFromHref.replace(/^\/+/, "")}` : dirFromRel;
+    const meta = fileBadgeMeta(rel);
     items.push({
       key: `file:${rel}`,
-      name: rel,
-      badge: fileBadge(rel),
+      name: baseName,
+      dirPath,
+      badge: meta.badge,
+      langBadge: meta.langBadge,
+      subtitleZh: meta.subtitleZh,
+      subtitleEn: meta.subtitleEn,
       operation,
       added: stats.added,
       removed: stats.removed,
@@ -227,27 +292,29 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
     });
   };
 
-  // 1. write / edit 工具修改或创建的任意文件（附带 +M -N 与内联 Diff），以及 read 涉及的交付文档
   if (node.k === "tool" && node.p["status"] === "done") {
     const toolName = node.p["name"];
     if (toolName === "write" || toolName === "edit" || toolName === "read") {
       const op: "write" | "edit" | "read" = toolName === "write" ? "write" : toolName === "edit" ? "edit" : "read";
       const stats = parseToolDiffStats(surface, node);
+      const hrefStr = typeof node.p["href"] === "string" ? node.p["href"] : undefined;
       if (typeof node.p["target"] === "string" && node.p["targetKind"] === "path") {
-        pushFile(node.p["target"], op, stats);
-      } else if (typeof node.p["href"] === "string") {
-        pushFile(node.p["href"], op, stats);
+        pushFile(node.p["target"], hrefStr, op, stats);
+      } else if (hrefStr !== undefined) {
+        pushFile(hrefStr, hrefStr, op, stats);
       }
       for (const cid of node.c) {
         const child = surface.nodes.get(cid);
         if (child?.p["role"] === "omp.tool.file") {
-          if (typeof child.p["title"] === "string") pushFile(child.p["title"], op, stats);
-          else if (typeof child.p["href"] === "string") pushFile(child.p["href"], op, stats);
+          const childHref = typeof child.p["href"] === "string" ? child.p["href"] : hrefStr;
+          if (typeof child.p["title"] === "string") pushFile(child.p["title"], childHref, op, stats);
+          else if (childHref !== undefined) pushFile(childHref, childHref, op, stats);
           for (const gcid of child.c) {
             const gc = surface.nodes.get(gcid);
-            if (typeof gc?.p["title"] === "string") pushFile(gc.p["title"], op, stats);
-            else if (typeof gc?.p["href"] === "string") pushFile(gc.p["href"], op, stats);
-            else if (typeof gc?.p["text"] === "string") pushFile(gc.p["text"], op, stats);
+            const gcHref = typeof gc?.p["href"] === "string" ? gc.p["href"] : childHref;
+            if (typeof gc?.p["title"] === "string") pushFile(gc.p["title"], gcHref, op, stats);
+            else if (gcHref !== undefined) pushFile(gcHref, gcHref, op, stats);
+            else if (typeof gc?.p["text"] === "string") pushFile(gc.p["text"], gcHref, op, stats);
           }
         }
       }
@@ -275,10 +342,15 @@ function extractNodeDeliverables(surface: DocSurface, id: string): DeliverableIt
                 ? `diagram-${blockIdx}.svg`
                 : `document-${blockIdx}.md`;
           const artifactId = `${id}-${blockIdx}`;
+          const meta = fileBadgeMeta(name);
           items.push({
             key: `art:${artifactId}`,
             name,
-            badge: fileBadge(name),
+            dirPath: "",
+            badge: meta.badge,
+            langBadge: meta.langBadge,
+            subtitleZh: meta.subtitleZh,
+            subtitleEn: meta.subtitleEn,
             operation: "write",
             added: body.split("\n").length,
             removed: 0,
@@ -405,11 +477,13 @@ function buildSurfaceSegments(surface: DocSurface): readonly MainSegment[] {
           turnUsageMs = parseDurationTextMs(extractPlainText(surface, oid));
         }
       }
+      const mergedDeliverables = dedupeDeliverables([...runDeliverables, ...extractNodeDeliverables(surface, id)]);
+      runDeliverables = [];
       flush(turnUsageMs, true);
       out.push({
         kind: "item",
         id,
-        deliverables: dedupeDeliverables(extractNodeDeliverables(surface, id)),
+        deliverables: mergedDeliverables,
       });
       continue;
     }
@@ -489,24 +563,17 @@ function StatusLine({ note }: { note: StatusNote }) {
   );
 }
 
-function DshFileItem({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) {
+/**
+ * 图 6 反重力（Antigravity）风格的单文件变更行：
+ * - 左侧语言类型徽标（M↓ / </> / {} / JS / TS / PY）+ 粗体文件名（点击直接在右侧栏打开预览）+ 浅灰目录路径
+ * - 右侧 +added（绿） -removed（红）行数统计
+ * - 单个文件的内联 Diff 默认不展开（expanded = false），点击该行任意空白处即可展开/收起该文件的 Diff！
+ */
+function AntigravityFileRow({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) {
   const zh = currentLocale() === "zh-CN";
-  // 如果是 edit 修改文件且带有 diff 节点，默认展开显示内联 DIFF；写入新文件或读取文档默认折叠成精致单行
   const hasBody = item.bodyNodeId !== undefined;
-  const [expanded, setExpanded] = useState(item.operation === "edit" && item.bodyKind === "diff");
-
-  const opLabel =
-    item.operation === "write"
-      ? zh
-        ? "写入文件"
-        : "Write"
-      : item.operation === "edit"
-        ? zh
-          ? "编辑文件"
-          : "Edit"
-        : zh
-          ? "读取文档"
-          : "Read";
+  // 单个文件 DIFF 默认不展开，点击行时展开
+  const [expanded, setExpanded] = useState(false);
 
   const openInSidebar = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -516,68 +583,41 @@ function DshFileItem({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) 
 
   return (
     <div
-      className="tsp-dsh-file"
+      className="tsp-ag-file"
       data-operation={item.operation}
       data-badge={item.badge}
       data-expanded={expanded && hasBody ? "" : undefined}
       data-testid="tsp-deliverable-card"
-      onClick={() => {
-        if (hasBody) setExpanded((prev) => !prev);
-        else if (item.filePath !== undefined) openFilePreview(ctx.taskId, item.filePath);
-        else if (item.artifact !== undefined) openInlineArtifact(ctx.taskId, item.artifact);
-      }}
     >
-      <div className="tsp-dsh-file-row">
-        <span className="tsp-dsh-file-leading" aria-hidden="true">
-          {item.operation === "read" ? (
-            <FileIcon size={14} />
-          ) : (
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M11.5 2.5a1.77 1.77 0 0 1 2.5 2.5L5.5 13.5 2 14l.5-3.5L11.5 2.5z" />
-            </svg>
-          )}
+      <div
+        className="tsp-ag-file-row"
+        onClick={() => {
+          if (hasBody) setExpanded((prev) => !prev);
+          else if (item.filePath !== undefined) openFilePreview(ctx.taskId, item.filePath);
+          else if (item.artifact !== undefined) openInlineArtifact(ctx.taskId, item.artifact);
+        }}
+      >
+        <span className="tsp-ag-file-badge" data-kind={item.langBadge.kind} aria-hidden="true">
+          {item.langBadge.label}
         </span>
-        <span className="tsp-dsh-file-title">{opLabel}</span>
-        <span className="tsp-dsh-file-sep" aria-hidden="true" />
         <button
           type="button"
-          className="tsp-dsh-file-link"
+          className="tsp-ag-file-name"
           onClick={openInSidebar}
-          title={zh ? "点击在右侧面板打开预览" : "Click to preview in sidebar"}
+          title={zh ? "点击在右侧栏打开查看" : "Click to open in sidebar"}
         >
           {item.name}
         </button>
-        {(item.added > 0 || item.removed > 0) && (
-          <span className="tsp-dsh-file-suffix" data-testid="tsp-deliverable-diff-stats">
-            {item.added > 0 && <span className="tsp-dsh-file-stat tsp-dsh-file-add">+{item.added}</span>}
-            {item.removed > 0 && <span className="tsp-dsh-file-stat tsp-dsh-file-del">-{item.removed}</span>}
+        {item.dirPath !== "" && <span className="tsp-ag-file-dir">{item.dirPath}</span>}
+        <span className="tsp-dsh-file-suffix" data-testid="tsp-deliverable-diff-stats">
+          <span className="tsp-dsh-file-stat tsp-dsh-file-add">+{item.added}</span>
+          <span className="tsp-dsh-file-stat tsp-dsh-file-del">-{item.removed}</span>
+        </span>
+        {hasBody && (
+          <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined} aria-hidden="true">
+            <ChevronDown />
           </span>
         )}
-        <span className="tsp-dsh-file-tail">
-          <button
-            type="button"
-            className="tsp-dsh-file-inspect"
-            onClick={openInSidebar}
-            title={zh ? "在侧栏预览" : "Preview in sidebar"}
-          >
-            <External size={12} />
-            <span>{zh ? "预览" : "Preview"}</span>
-          </button>
-          {hasBody && (
-            <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined} aria-hidden="true">
-              <ChevronDown />
-            </span>
-          )}
-        </span>
       </div>
       {hasBody && expanded && item.bodyNodeId !== undefined && (
         <div className="tsp-dsh-file-body" onClick={(e) => e.stopPropagation()} data-testid="tsp-deliverable-diff-body">
@@ -588,13 +628,158 @@ function DshFileItem({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) 
   );
 }
 
-function DeliverableShelf({ ctx, items }: { ctx: TspContext; items: readonly DeliverableItem[] }) {
-  if (items.length === 0) return null;
+/**
+ * 图 5 DSH 风格的双列交付文件卡片（针对 .svg / .html / .md / 图片等交付物，点击直接在侧边栏打开查看）：
+ * - 左侧 38×38 圆角柔和着色图标块
+ * - 中间粗体文件名 + 副标题描述
+ * - 右侧 [文件夹/侧栏预览] 与 [v 展开] 两个精致方框按钮
+ */
+function DshDeliverableCard({ item, ctx }: { item: DeliverableItem; ctx: TspContext }) {
+  const zh = currentLocale() === "zh-CN";
+  const hasBody = item.bodyNodeId !== undefined;
+  const [expanded, setExpanded] = useState(false);
+
+  const openInSidebar = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (item.filePath !== undefined) openFilePreview(ctx.taskId, item.filePath);
+    else if (item.artifact !== undefined) openInlineArtifact(ctx.taskId, item.artifact);
+  };
+
   return (
-    <div className="tsp-deliverables" data-testid="tsp-deliverables">
-      {items.map((item) => (
-        <DshFileItem key={item.key} item={item} ctx={ctx} />
-      ))}
+    <div className="tsp-dsh-card-wrap">
+      <div className="tsp-dsh-card" data-badge={item.badge} data-testid="tsp-deliverable-card" onClick={openInSidebar}>
+        <span className="tsp-dsh-card-icon" data-badge={item.badge} aria-hidden="true">
+          <FileIcon size={18} />
+        </span>
+        <span className="tsp-dsh-card-main">
+          <span className="tsp-dsh-card-title">{item.name}</span>
+          <span className="tsp-dsh-card-sub">{zh ? item.subtitleZh : item.subtitleEn}</span>
+        </span>
+        <span className="tsp-dsh-card-actions">
+          <button
+            type="button"
+            className="tsp-dsh-card-btn"
+            onClick={openInSidebar}
+            title={zh ? "在侧边栏预览打开" : "Open in sidebar preview"}
+            aria-label={zh ? "在侧边栏预览打开" : "Open in sidebar preview"}
+          >
+            <External size={13} />
+          </button>
+          {hasBody && (
+            <button
+              type="button"
+              className="tsp-dsh-card-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+              title={zh ? "展开/收起内联内容" : "Toggle inline preview"}
+              aria-expanded={expanded}
+            >
+              <span className="tsp-dsh-file-chev" data-open={expanded ? "" : undefined}>
+                <ChevronDown />
+              </span>
+            </button>
+          )}
+        </span>
+      </div>
+      {hasBody && expanded && item.bodyNodeId !== undefined && (
+        <div className="tsp-dsh-file-body" onClick={(e) => e.stopPropagation()}>
+          <TspNode id={item.bodyNodeId} ctx={ctx} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 结合图 5（DSH 双列交付物卡片）与图 6（反重力 Antigravity 可展开/可搜索的「N files changed +M -K」变更面板）：
+ * - 面板整体默认展开（panelOpen = true），支持按文件名/路径搜索过滤，右侧带「评审」按钮；
+ * - 面板内每个单文件行默认收起 Diff（点击行展开单文件 Diff，点击文件名直接在右侧栏预览）；
+ * - 可预览的交付文档（SVG / HTML / MD）同时提供图 5 风格的双列交付卡片。
+ */
+function DeliverableShelf({ ctx, items }: { ctx: TspContext; items: readonly DeliverableItem[] }) {
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [query, setQuery] = useState("");
+  const zh = currentLocale() === "zh-CN";
+  if (items.length === 0) return null;
+
+  const changedFiles = items.filter((i) => i.operation === "write" || i.operation === "edit");
+  const deliverableDocs = items.filter((i) => i.operation === "read" || isDeliverableDocPath(i.name));
+
+  const totalAdded = changedFiles.reduce((acc, i) => acc + i.added, 0);
+  const totalRemoved = changedFiles.reduce((acc, i) => acc + i.removed, 0);
+  const q = query.trim().toLowerCase();
+  const filteredChanged =
+    q === ""
+      ? changedFiles
+      : changedFiles.filter((i) => i.name.toLowerCase().includes(q) || i.dirPath.toLowerCase().includes(q));
+
+  return (
+    <div className="tsp-deliverables-host" data-testid="tsp-deliverables">
+      {deliverableDocs.length > 0 && (
+        <div className="tsp-dsh-cards-grid">
+          {deliverableDocs.map((item) => (
+            <DshDeliverableCard key={`doc:${item.key}`} item={item} ctx={ctx} />
+          ))}
+        </div>
+      )}
+      {changedFiles.length > 0 && (
+        <div className="tsp-ag-panel" data-testid="tsp-ag-changes-panel">
+          <div className="tsp-ag-head">
+            <button
+              type="button"
+              className="tsp-ag-toggle"
+              aria-expanded={panelOpen}
+              onClick={() => setPanelOpen((v) => !v)}
+              data-testid="tsp-ag-changes-toggle"
+            >
+              <span className="tsp-ag-count">
+                {changedFiles.length} {changedFiles.length === 1 ? "file changed" : "files changed"}
+              </span>
+              <span className="tsp-ag-totals">
+                <span className="tsp-dsh-file-stat tsp-dsh-file-add">+{totalAdded}</span>
+                <span className="tsp-dsh-file-stat tsp-dsh-file-del">-{totalRemoved}</span>
+              </span>
+              <span className="tsp-dsh-file-chev" data-open={panelOpen ? "" : undefined} aria-hidden="true">
+                <ChevronDown />
+              </span>
+            </button>
+            {panelOpen && (
+              <input
+                type="search"
+                className="tsp-ag-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={zh ? "搜索变更文件或 Diff…" : "Search changed files…"}
+                aria-label={zh ? "搜索变更文件" : "Search changed files"}
+                data-testid="tsp-ag-changes-search"
+              />
+            )}
+            <button
+              type="button"
+              className="tsp-ag-review-btn"
+              onClick={() => {
+                const first = changedFiles[0];
+                if (!first) return;
+                if (first.filePath !== undefined) openFilePreview(ctx.taskId, first.filePath);
+                else if (first.artifact !== undefined) openInlineArtifact(ctx.taskId, first.artifact);
+              }}
+              data-testid="tsp-ag-changes-review"
+            >
+              <FileIcon size={12} />
+              <span>{zh ? "评审" : "Review"}</span>
+            </button>
+          </div>
+          {panelOpen && (
+            <div className="tsp-ag-list">
+              {filteredChanged.map((item) => (
+                <AntigravityFileRow key={`chg:${item.key}`} item={item} ctx={ctx} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

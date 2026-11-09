@@ -3222,150 +3222,292 @@
   background: transparent;
   box-shadow: none;
 }
-/* ───────── 聊天文件变更与交付行（1:1 复刻 dsh-claude-style chat-files.css + 内联 Diff 卡片） ───────── */
-.tsp-deliverables {
-  --dsh-diff-add: rgb(1, 162, 65);
-  --dsh-diff-del: rgb(186, 39, 35);
+/* ───────── 图 5 DSH 双列交付文件卡片 + 图 6 反重力（Antigravity）可展开/可搜索文件变更 Diff 面板 ───────── */
+.tsp-deliverables-host {
+  --dsh-diff-add: var(--diff-add-fg);
+  --dsh-diff-del: var(--diff-del-fg);
   display: flex;
   flex-direction: column;
-  margin-top: var(--space-1-5);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-raised);
-  overflow: hidden;
+  gap: var(--space-3);
+  margin-top: var(--space-2-5);
 }
-:root[data-theme-mode="dark"] .tsp-deliverables {
-  --dsh-diff-add: rgb(65, 201, 119);
-  --dsh-diff-del: rgb(250, 66, 62);
+
+/* 图 5：DSH 2 列交付文件卡片网格 */
+.tsp-dsh-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-2-5);
 }
-.tsp-dsh-file {
+.tsp-dsh-card-wrap {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  overflow: hidden;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
-.tsp-dsh-file + .tsp-dsh-file {
-  border-top: 0.5px solid var(--border);
+.tsp-dsh-card-wrap:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-1);
 }
-.tsp-dsh-file-row {
+.tsp-dsh-card {
   display: flex;
   align-items: center;
-  min-height: 36px;
-  padding: 6px 12px;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.tsp-dsh-card-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--syn-keyword) 12%, transparent);
+  color: var(--syn-keyword);
+}
+.tsp-dsh-card-icon[data-badge="SVG"] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.tsp-dsh-card-icon[data-badge="HTML"] {
+  background: color-mix(in srgb, var(--syn-func) 12%, transparent);
+  color: var(--syn-func);
+}
+.tsp-dsh-card-icon[data-badge="MD"] {
+  background: color-mix(in srgb, var(--link) 12%, transparent);
+  color: var(--link);
+}
+.tsp-dsh-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tsp-dsh-card-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsp-dsh-card-sub {
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsp-dsh-card-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tsp-dsh-card-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.tsp-dsh-card-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* 图 6：反重力（Antigravity）底部 N files changed +M -K 折叠与搜索面板 */
+.tsp-ag-panel {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+.tsp-ag-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  min-height: 32px;
+  padding: 2px 4px;
+}
+.tsp-ag-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.tsp-ag-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tsp-ag-count {
+  color: var(--text-2);
+}
+.tsp-ag-totals {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.tsp-ag-search {
+  width: min(200px, 35%);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  outline: none;
+}
+.tsp-ag-search:focus {
+  border-color: var(--accent);
+  background: var(--bg-raised);
+}
+.tsp-ag-review-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.tsp-ag-review-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tsp-ag-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-1);
+}
+.tsp-ag-file {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+}
+.tsp-ag-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   user-select: none;
   transition: background-color var(--dur-fast) var(--ease-out);
 }
-.tsp-dsh-file-row:hover {
+.tsp-ag-file-row:hover {
   background: var(--bg-hover);
 }
-.tsp-dsh-file-leading {
+.tsp-ag-file-badge {
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 8px;
-  color: var(--text-3);
-}
-.tsp-dsh-file-title {
-  flex: none;
-  font-size: 13px;
-  line-height: 24px;
-  font-weight: 400;
+  min-width: 22px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--fw-strong);
+  text-align: center;
   color: var(--text-2);
-  transition: color var(--dur-fast) var(--ease-out);
 }
-.tsp-dsh-file-row:hover .tsp-dsh-file-title {
-  color: var(--text);
+.tsp-ag-file-badge[data-kind="js"] {
+  color: var(--st-waiting);
 }
-.tsp-dsh-file-sep {
+.tsp-ag-file-badge[data-kind="ts"],
+.tsp-ag-file-badge[data-kind="md"],
+.tsp-ag-file-badge[data-kind="py"] {
+  color: var(--link);
+}
+.tsp-ag-file-badge[data-kind="brace"] {
+  color: var(--syn-func);
+}
+.tsp-ag-file-badge[data-kind="html"] {
+  color: var(--accent);
+}
+.tsp-ag-file-badge[data-kind="img"] {
+  color: var(--syn-keyword);
+}
+.tsp-ag-file-name {
   flex: none;
-  width: 2px;
-  height: 2px;
-  border-radius: 1px;
-  margin: 0 8px;
-  background: var(--text-3);
-}
-.tsp-dsh-file-link {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
-  line-height: 24px;
-  color: var(--text-2);
-  text-align: left;
-  text-decoration: underline dotted;
-  text-decoration-color: var(--text-3);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.tsp-dsh-file-row:hover .tsp-dsh-file-link,
-.tsp-dsh-file-link:hover {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   color: var(--text);
-  text-decoration-color: currentColor;
+  cursor: pointer;
+}
+.tsp-ag-file-name:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+.tsp-ag-file-dir {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
 }
 .tsp-dsh-file-suffix {
   flex: none;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  margin-left: 10px;
+  margin-left: auto;
+  padding-left: var(--space-2);
   white-space: nowrap;
 }
 .tsp-dsh-file-stat {
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 24px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
-  transform: translateY(0.5px);
 }
 .tsp-dsh-file-add {
   color: var(--dsh-diff-add);
 }
 .tsp-dsh-file-del {
   color: var(--dsh-diff-del);
-}
-.tsp-dsh-file-tail {
-  margin-left: auto;
-  padding-left: var(--space-2);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.tsp-dsh-file-inspect {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--bg-app);
-  color: var(--text-2);
-  font: inherit;
-  font-size: 11px;
-  line-height: 16px;
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-.tsp-dsh-file:hover .tsp-dsh-file-inspect,
-.tsp-dsh-file-inspect:focus-visible {
-  opacity: 1;
-}
-.tsp-dsh-file-inspect:hover {
-  background: var(--bg-hover);
-  color: var(--text);
 }
 .tsp-dsh-file-chev {
   display: inline-flex;
@@ -3379,7 +3521,9 @@
   transform: rotate(0deg);
 }
 .tsp-dsh-file-body {
-  border-top: 0.5px solid var(--border);
+  margin: var(--space-1) 0 var(--space-2) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: var(--bg-tool);
   max-height: min(320px, 42vh);
   overflow-y: auto;

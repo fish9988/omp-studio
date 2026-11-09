@@ -62,6 +62,71 @@ function isFileHref(href: string): boolean {
   return href !== "" && !/^(?:#|\?|\/\/)/.test(href) && !otherScheme.test(href);
 }
 
+interface FileChipMeta {
+  cleanPath: string;
+  badge: string;
+  kind: "js" | "ts" | "brace" | "md" | "html" | "py" | "img" | "code";
+}
+
+/**
+ * 识别行内代码里的文件引用（如 `style.css`、`src/main.js`、`README.md`、`core.mjs:5-8`），
+ * 渲染为带语言图标的可点击文件胶囊（对齐反重力 / Cursor 风格，点击直接在右侧预览栏打开）。
+ */
+function parseInlineFileChip(raw: string): FileChipMeta | null {
+  const trimmed = raw.trim();
+  if (
+    trimmed.length < 3 ||
+    trimmed.length > 140 ||
+    /\s/.test(trimmed) ||
+    trimmed.startsWith("/") ||
+    /^[a-zA-Z]:[\\/]/.test(trimmed) ||
+    /^(?:https?:|mailto:|file:|omp:|xd:|local:|proc:|agent:)/i.test(trimmed) ||
+    trimmed.includes("..")
+  ) {
+    return null;
+  }
+  const withoutLine = trimmed.replace(/:\d+(?:-\d+)?$/, "").replace(/#L\d+.*$/i, "");
+  const match = /^(?:[\w.-]+[\\/])*([\w.-]+\.([a-zA-Z0-9]+))$/.exec(withoutLine);
+  if (!match) return null;
+  const ext = (match[2] ?? "").toLowerCase();
+  if (ext === "js" || ext === "mjs" || ext === "cjs" || ext === "jsx") {
+    return { cleanPath: withoutLine, badge: "JS", kind: "js" };
+  }
+  if (ext === "ts" || ext === "mts" || ext === "cts" || ext === "tsx") {
+    return { cleanPath: withoutLine, badge: "TS", kind: "ts" };
+  }
+  if (ext === "css" || ext === "scss" || ext === "less" || ext === "json" || ext === "jsonc") {
+    return { cleanPath: withoutLine, badge: "{}", kind: "brace" };
+  }
+  if (ext === "md" || ext === "markdown" || ext === "mdx") {
+    return { cleanPath: withoutLine, badge: "M↓", kind: "md" };
+  }
+  if (ext === "html" || ext === "htm" || ext === "vue" || ext === "svelte" || ext === "xml") {
+    return { cleanPath: withoutLine, badge: "</>", kind: "html" };
+  }
+  if (ext === "py") {
+    return { cleanPath: withoutLine, badge: "PY", kind: "py" };
+  }
+  if (ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "webp" || ext === "gif" || ext === "svg") {
+    return { cleanPath: withoutLine, badge: "IMG", kind: "img" };
+  }
+  if (
+    ext === "rs" ||
+    ext === "go" ||
+    ext === "java" ||
+    ext === "c" ||
+    ext === "cpp" ||
+    ext === "h" ||
+    ext === "sh" ||
+    ext === "yml" ||
+    ext === "yaml" ||
+    ext === "toml" ||
+    ext === "sql"
+  ) {
+    return { cleanPath: withoutLine, badge: ext.toUpperCase(), kind: "code" };
+  }
+  return null;
+}
 function alignStyle(token: Token): CSSProperties | undefined {
   const style = attr(token, "style");
   const match = style ? /text-align:\s*(left|center|right)/.exec(style) : null;
@@ -83,8 +148,29 @@ function renderInline(node: TreeNode, key: number, ctx: RenderContext): ReactNod
       return "\n";
     case "hardbreak":
       return h("br", { key });
-    case "code_inline":
+    case "code_inline": {
+      const chip = ctx.openFile !== undefined ? parseInlineFileChip(token.content) : null;
+      if (chip !== null && ctx.openFile !== undefined) {
+        const open = ctx.openFile;
+        return h(
+          "code",
+          {
+            key,
+            className: "md-code-inline md-file-chip",
+            "data-file-kind": chip.kind,
+            title: chip.cleanPath,
+            onClick: (event: MouseEvent) => {
+              event.preventDefault();
+              event.stopPropagation();
+              open(chip.cleanPath);
+            },
+          },
+          h("span", { className: "md-file-chip-badge", "data-kind": chip.kind, "aria-hidden": "true" }, chip.badge),
+          token.content,
+        );
+      }
       return h("code", { key, className: "md-code-inline" }, token.content);
+    }
     case "math_inline":
       return renderMath(token, key, false, ctx);
     case "em_open":

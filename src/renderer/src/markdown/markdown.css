@@ -1,7 +1,8 @@
 /* Markdown 渲染样式（spec 4.9 / 4.10）。只用 tokens.css 里的变量。 */
 .md {
+  font-family: var(--font-display);
   font-size: var(--fs-prose);
-  line-height: var(--lh-prose);
+  line-height: 1.65;
   color: var(--text);
   overflow-wrap: anywhere;
 }
@@ -13,11 +14,11 @@
   margin-bottom: 0;
 }
 .md-block + .md-block {
-  margin-top: var(--space-3);
+  margin-top: var(--space-3-5);
 }
 
 .md p {
-  margin: 0;
+  margin: var(--space-2-5) 0;
 }
 .md h1,
 .md h2,
@@ -25,14 +26,30 @@
 .md h4,
 .md h5,
 .md h6 {
-  margin: var(--space-5) 0 var(--space-1-5);
+  font-family: var(--font-display);
+  margin: var(--space-6) 0 var(--space-2-5);
   font-weight: var(--fw-strong);
-  font-size: var(--fs-prose);
-  line-height: var(--lh-prose);
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 .md h1 {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-xl);
+}
+.md h2 {
   font-size: var(--fs-lg);
   line-height: var(--lh-lg);
+}
+.md h3 {
+  font-size: 16px;
+  line-height: 24px;
+}
+.md h4,
+.md h5,
+.md h6 {
+  font-size: var(--fs-prose);
+  line-height: var(--lh-prose);
+  margin: var(--space-4) 0 var(--space-2);
 }
 .md .md-block:first-child > h1:first-child,
 .md .md-block:first-child > h2:first-child,
@@ -42,11 +59,14 @@
 
 .md ul,
 .md ol {
-  margin: 0;
+  margin: var(--space-2) 0;
   padding-left: var(--space-5);
 }
+.md ul ul {
+  list-style-type: circle;
+}
 .md li + li {
-  margin-top: var(--space-1);
+  margin-top: var(--space-1-5);
 }
 .md li::marker {
   color: var(--text-3);
@@ -66,7 +86,8 @@
 }
 .md li > ul,
 .md li > ol {
-  margin-top: var(--space-1);
+  margin-top: var(--space-1-5);
+  margin-bottom: var(--space-1-5);
 }
 .md li.md-task {
   list-style: none;
@@ -86,36 +107,87 @@
 }
 
 .md blockquote {
-  margin: 0;
-  padding-left: var(--space-3-5);
+  margin: var(--space-2-5) 0;
+  padding: var(--space-2) var(--space-3-5);
   border-left: 2px solid var(--border-strong);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--bg-sunken);
   color: var(--text-2);
 }
 
 .md hr {
   border: 0;
-  border-top: 1px solid var(--border-subtle);
-  margin: var(--space-5) 0;
+  border-top: 0.5px solid var(--border);
+  margin: var(--space-6) 0;
 }
 
 .md-link {
   color: var(--link);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 55%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
   text-shadow: var(--accent-glow);
   cursor: pointer;
 }
 .md-link:hover {
-  text-decoration: underline;
+  text-decoration-color: var(--link);
 }
 
+/* 行内代码胶囊：复刻 dsh-claude-style typography.css（1px 细边框 + 浅底色 + 紧凑行高） */
 .md-code-inline {
   font-family: var(--font-mono);
-  font-size: 0.92em;
+  font-size: calc(1em - 1.5px);
+  line-height: 1.25;
   padding: 1px 5px;
-  background: var(--bg-active);
-  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
 }
 
+/* 反重力风格可点击文件胶囊（图 6：带 JS / TS / {} / M↓ 语言彩色前缀徽标，点击在右侧栏预览） */
+.md-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px 1px 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.md-file-chip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+.md-file-chip-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--fw-strong);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-2);
+}
+.md-file-chip-badge[data-kind="js"] {
+  color: var(--st-waiting);
+}
+.md-file-chip-badge[data-kind="ts"],
+.md-file-chip-badge[data-kind="md"],
+.md-file-chip-badge[data-kind="py"] {
+  color: var(--link);
+}
+.md-file-chip-badge[data-kind="brace"] {
+  color: var(--syn-func);
+}
+.md-file-chip-badge[data-kind="html"] {
+  color: var(--accent);
+}
+.md-file-chip-badge[data-kind="img"] {
+  color: var(--syn-keyword);
+}
 /* 公式：KaTeX 输出，颜色继承正文，字号跟正文一致；块级居中，太宽时横向滚动。 */
 .md-math,
 .md-math-block {
@@ -148,31 +220,45 @@
   border-radius: var(--radius-md);
 }
 
+/* 表格：复刻 dsh-claude-style typography.css（12px 圆角描边外框 + 暖灰表头底色 + 0.5px 竖向与横向分割线） */
 .md-table {
   max-width: 100%;
+  margin: var(--space-3-5) 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
   overflow-x: auto;
 }
 .md-table table {
   border-collapse: collapse;
   min-width: 100%;
 }
+.md-table thead th,
+.md-table thead td {
+  background: var(--bg-sunken);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  color: var(--text);
+  font-weight: var(--fw-strong);
+  border-bottom: 1px solid var(--border);
+}
 .md-table th,
 .md-table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 16px;
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  border-bottom: 0.5px solid var(--border);
   text-align: left;
   vertical-align: top;
-  /* `.md` 是 overflow-wrap: anywhere，会让自动表格布局的最小内容宽度变成 1 个字（/tools 的名字列被挤成竖排）；
-     break-word 不影响最小内容宽度，整词保持完整，实在放不下才折。 */
   overflow-wrap: break-word;
 }
-.md-table th {
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
-  color: var(--text-2);
-  font-weight: var(--fw-strong);
+.md-table tbody tr:last-child > td {
+  border-bottom: 0;
 }
-
+.md-table th + th,
+.md-table td + td {
+  border-left: 0.5px solid var(--border);
+}
 /* 流式光标：末尾 2px 强调色竖条。0% 帧即静态终态（reduced-motion 下常亮）。 */
 @keyframes md-caret-pulse {
   0% {
@@ -198,31 +284,31 @@
   animation-play-state: var(--play-state);
 }
 
-/* 代码块：和过程区的工具卡片同一套外观（浅底 `--bg-tool`、不描边、`--radius-lg`、头高 28），头和正文同底，不再分白头灰身（2026-10-25） */
+/* 代码块：复刻 dsh-claude-style typography.css（12px 圆角白底/凸起卡片 + 头部与正文一体无横线分割 + 舒展留白） */
 .md-codeblock {
   position: relative;
   margin: var(--space-3) 0;
-  border-radius: var(--radius-lg);
-  background: var(--bg-tool);
-  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
   overflow: hidden;
 }
 .md-codehead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: var(--row-tool);
-  padding: 0 var(--space-1) 0 var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  min-height: 32px;
+  padding: var(--space-2) var(--space-2-5) 0 var(--space-4);
 }
 .md-codelang {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   line-height: var(--lh-xs);
   color: var(--text-3);
 }
 .md-codeactions {
   display: flex;
-  gap: var(--space-0-5);
+  gap: var(--space-1);
 }
 .md-codebtn {
   display: grid;
@@ -233,16 +319,18 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-2);
-  opacity: 0;
+  color: var(--text-3);
+  opacity: 0.7;
   cursor: pointer;
   transition:
     opacity var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
     background var(--dur-instant);
 }
 .md-codeblock:hover .md-codebtn,
 .md-codeblock:focus-within .md-codebtn {
   opacity: 1;
+  color: var(--text-2);
 }
 .md-codebtn:hover {
   background: var(--bg-hover);
@@ -283,11 +371,12 @@
 .md-codebody {
   margin: 0;
   max-height: min(440px, 55vh);
-  padding: var(--space-0-5) var(--space-3) var(--space-3);
+  padding: var(--space-1-5) var(--space-4) var(--space-3-5);
   overflow-y: auto;
   font-family: var(--font-mono);
-  font-size: var(--fs-code);
-  line-height: var(--lh-code);
+  font-size: calc(1em - 1px);
+  font-weight: var(--fw-medium);
+  line-height: 23px;
   tab-size: 2;
   /* 长行折行，不出横向滚动条（2026-10-20） */
   white-space: pre-wrap;
