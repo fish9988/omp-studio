@@ -3123,6 +3123,15 @@
   max-width: 100%;
   margin-top: var(--space-1-5);
 }
+.tsp-process-group-body:not([data-trajectory]) {
+  max-height: min(400px, 50vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.tsp-process-group-body[data-layout="column"]:not([data-trajectory]) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 .tsp-process-group-body:hover::-webkit-scrollbar-thumb,
 .tsp-section[data-role^="omp.thinking"] > .tsp-section-body:hover::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);

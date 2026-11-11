@@ -16,6 +16,7 @@ import { IconButton, TextField } from "../../ui/controls.tsx";
 import { reportErrorNow } from "../../ui/errors.ts";
 import { scrimsOpen, subscribeScrims } from "../../ui/title-bar-dim.ts";
 import { setPreviewWidth, usePreviewWidth } from "../file-preview/preview-store.ts";
+import { WorkbenchStrip } from "../workbench/WorkbenchStrip.tsx";
 import { browserPanelTakesFocus, closeBrowserPanel, setBrowserState, useBrowserState } from "./browser-store.ts";
 import "../file-preview/file-preview.css";
 import "./browser.css";
@@ -169,6 +170,7 @@ export function BrowserPanel({ taskId }: { taskId: TaskId }) {
         }}
         onKeyDown={onResizerKey}
       />
+      <WorkbenchStrip active="browser" taskId={taskId} />
       {/* 头部下面是原生页面，提示画在下方会被它盖住 */}
       <header className="file-preview-head browser-head" data-tip-side="top">
         <IconButton

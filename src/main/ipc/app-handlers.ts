@@ -2,6 +2,7 @@
 import { app, shell } from "electron";
 import {
   brandStyles,
+  conversationViews,
   editCommands,
   helperThinkingLevels,
   historyOrders,
@@ -137,6 +138,12 @@ export const appHandlers: HandlerGroup<
       }),
       ...(record["preferredShell"] !== undefined && {
         preferredShell: parseOneOf(record["preferredShell"], "preferredShell", preferredShells),
+      }),
+      ...(record["conversationView"] !== undefined && {
+        conversationView: parseOneOf(record["conversationView"], "conversationView", conversationViews),
+      }),
+      ...(record["homeRipple"] !== undefined && {
+        homeRipple: parseBoolean(record["homeRipple"], "homeRipple"),
       }),
     });
     if (record["preferredShell"] !== undefined) {

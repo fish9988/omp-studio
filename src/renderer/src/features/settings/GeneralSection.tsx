@@ -18,6 +18,7 @@ import { useT } from "../../i18n/use-t.ts";
 import { shortcutKeys } from "../../app/platform-keys.ts";
 import {
   setBrandStyle,
+  setHomeRipple,
   setMascotCharacter,
   setPreferredShell,
   setProcessRowsLayout,
@@ -109,6 +110,7 @@ export function GeneralSection() {
     value,
     label: t(`settings.mascot.${value}`),
   }));
+  const homeRipple = useShellValue("homeRipple") ?? true;
   const processRows = useShellValue("processRows") ?? "column";
   const backdrop = settings?.backdrop ?? "theme";
   const backdropOptions = (["theme", "custom", "none"] as const).map((value) => ({
@@ -305,6 +307,17 @@ export function GeneralSection() {
               />
               {systemMotion && <Badge>{t("settings.motion.system")}</Badge>}
             </>
+          )}
+        </Row>
+        <Row label={t("settings.homeRipple")}>
+          {(labelId) => (
+            <Switch
+              checked={homeRipple}
+              disabled={(settings?.reduceMotion ?? false) || systemMotion}
+              labelledBy={labelId}
+              onChange={(next) => setHomeRipple(next)}
+              testId="setting-home-ripple"
+            />
           )}
         </Row>
         <Row label={t("settings.copyOnSelect")} info={t("settings.copyOnSelect.desc")}>

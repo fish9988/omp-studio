@@ -64,6 +64,7 @@ export const settings = {
   "backdropStrength.high": "浓",
   glass: "毛玻璃",
   motion: "减少动效",
+  homeRipple: "首页字符波纹",
   shortcuts: "快捷键",
   defaultThinking: "默认思考强度",
   helperModel: "AI 辅助模型（重命名 / 提示词优化）",

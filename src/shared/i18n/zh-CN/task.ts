@@ -29,6 +29,8 @@ export const task = {
   exportHtml: "导出为 HTML…",
   pin: "置顶会话",
   unpin: "取消置顶会话",
+  markUnread: "标为未读",
+  markRead: "标为已读",
   copyRef: "复制跨对话引用 (#ID)",
   copiedId: "已复制会话 ID：{id}",
   copiedRef: "已复制跨对话引用 #{id}，粘贴到其他对话即可引用此会话",

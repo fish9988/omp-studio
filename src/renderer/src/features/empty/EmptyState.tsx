@@ -1,17 +1,15 @@
-// 没选任务时的主区（spec §4.7）：贴底的草稿输入框；上方是在剩余空间里竖直居中的概览：像素 π + "开始一个任务"一行（升级后第一次启动时
-// 标题下面有"最近更新"，版本号在那一行里）、本周用量卡片。概览比窗口高时整页滚动，输入框始终贴底。
-// 不画 "omp studio" 字标：顶栏已经有品牌，这里再来一遍是重复。
-// 项目标签在输入框工具行里审批胶囊的右边（是 git 仓库时，顶栏另有分支胶囊，可勾选在 worktree 里开始）。没选项目就是默认文件夹（AppInfo.chatsDir，
-// 发送时才建目录、加项目）；换项目走侧栏：项目旁的 ＋、"打开文件夹"，或拖入文件夹。
+// 没选任务时的主区（spec §4.7）：背景字符波纹场 + 贴底的草稿输入框；上方是在剩余空间里竖直居中的 Studio 概览：
+// 像素 π + "开始一个任务"（升级后第一次启动附带最近更新）、Bento 用量仪表盘卡片。概览比窗口高时整页滚动，输入框始终贴底。
 import { useEffect } from "react";
 import { useT } from "../../i18n/use-t.ts";
+import { useAppInfo } from "../../store/index.ts";
+import { Button } from "../../ui/controls.tsx";
+import { describeError } from "../../ui/errors.ts";
 import { DraftComposer } from "../composer/index.ts";
 import { refreshProjects, useProjectsState } from "../sidebar/projects-store.ts";
-import { describeError } from "../../ui/errors.ts";
-import { Button } from "../../ui/controls.tsx";
-import { useAppInfo } from "../../store/index.ts";
-import { ProjectLabel } from "./ProjectLabel.tsx";
 import { EmptyMark } from "./EmptyMark.tsx";
+import { HomeRippleCanvas } from "./HomeRippleCanvas.tsx";
+import { ProjectLabel } from "./ProjectLabel.tsx";
 import { UsageCard } from "./UsageCard.tsx";
 import { useDraftProject } from "./use-draft-project.ts";
 import { WhatsNew } from "./WhatsNew.tsx";
@@ -49,6 +47,7 @@ export function EmptyState() {
 
   return (
     <div className="empty" data-testid="empty-state" data-kind={project === null ? "no-project" : "project"}>
+      <HomeRippleCanvas />
       <div className="empty-main">
         <div className="empty-head">
           <EmptyMark />

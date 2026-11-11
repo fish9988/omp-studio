@@ -108,6 +108,7 @@ describe("配色主题", () => {
     const theme = blocks[name];
     const spec = themes[name];
     expect(theme.get("color-scheme")).toBe(spec.dark ? "dark" : "light");
+    expect(theme.get("--bg-app")).toBe(spec.app);
     expect(theme.get("--bg-sidebar")).toBe(spec.sidebar);
     expect(theme.get("--text")).toBe(spec.text);
     expect(theme.get("--bg-scrim")).toBe(spec.scrim);

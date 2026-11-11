@@ -3,6 +3,7 @@
 import {
   limits,
   type BrandStyle,
+  type ConversationView,
   type HelperThinking,
   type HistoryOrder,
   type MascotCharacter,
@@ -35,6 +36,8 @@ const shellStore = createStore<ShellUiState>({
   helperThinking: "off",
   autoSmartRename: false,
   preferredShell: "auto",
+  conversationView: "chat",
+  homeRipple: true,
   drawerOpen: false,
 });
 /** 只在有字段真的变了时写入：每次 set 都会通知所有订阅者（例如每次切任务都会调 setDrawerOpen(false)）。 */
@@ -126,6 +129,17 @@ export function setPreferredShell(preferredShell: PreferredShell): void {
   update({ preferredShell });
   persist({ preferredShell });
 }
+
+export function setConversationView(conversationView: ConversationView): void {
+  update({ conversationView });
+  persist({ conversationView });
+}
+
+export function setHomeRipple(homeRipple: boolean): void {
+  update({ homeRipple });
+  persist({ homeRipple });
+}
+
 export function setDrawerOpen(drawerOpen: boolean): void {
   update({ drawerOpen });
 }

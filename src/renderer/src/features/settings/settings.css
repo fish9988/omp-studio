@@ -86,48 +86,6 @@
   align-items: center;
   margin-bottom: var(--space-4);
 }
-
-/* 统一设置中心顶部标签条（复刻 dsh-claude-style 的分段标签） */
-.st-hub-bar {
-  display: flex;
-  align-items: center;
-  margin-bottom: var(--space-4);
-}
-.st-hub-tabs {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-}
-.st-hub-tab {
-  height: 28px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
-}
-.st-hub-tab:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-.st-hub-tab[data-active] {
-  color: var(--text);
-  background: var(--control-on);
-  box-shadow: var(--shadow-1);
-}
 /* ───────── 过程行可视化双卡选择器（复刻 process-column.css） ───────── */
 .st-process-cards {
   display: grid;

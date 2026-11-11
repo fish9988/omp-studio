@@ -20,7 +20,7 @@ import { ModelsSection } from "./ModelsSection.tsx";
 import { OmpConfigPane, useOmpConfigLoader } from "./OmpConfigPane.tsx";
 import { PageHeadSlot } from "./PageHeadActions.tsx";
 import { ProvidersSection } from "./ProvidersSection.tsx";
-import { onSettingsKeyDown, SettingsCompactNav, SettingsTabStrip } from "./SettingsNav.tsx";
+import { onSettingsKeyDown, SettingsCompactNav } from "./SettingsNav.tsx";
 import { ToolsCard } from "./ToolsCard.tsx";
 import "./motion-preference.ts";
 import "./settings.css";
@@ -103,7 +103,7 @@ export function SettingsView({ compactNav }: { compactNav: boolean }) {
       <div className="settings-scroll-host">
         <div ref={scroller} className="settings-scroll">
           <div className="settings-content">
-            {compactNav ? <SettingsCompactNav /> : <SettingsTabStrip />}
+            {compactNav && <SettingsCompactNav />}
             <div className="st-page-head">
               <h1 ref={title} tabIndex={-1} className="settings-title">
                 {heading}

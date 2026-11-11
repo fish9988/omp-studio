@@ -12,6 +12,7 @@ import { isLetterKey, withShortcut } from "../../app/platform-keys.ts";
 import { Bolt } from "../../icons.tsx";
 import { onStudioCommand } from "../palette/index.ts";
 import { ModelPicker, type ModelPickerProps } from "./ModelPicker.tsx";
+import { EffortPopover } from "./EffortPopover.tsx";
 import type { ModelPickerRequest } from "./slash-args.ts";
 import { nextThinkingLevel, thinkingLabel } from "./thinking-levels.ts";
 import { speedBadges } from "./speed-limit-format.ts";
@@ -32,6 +33,7 @@ export function ModelChip(task: ModelChipProps) {
   const report = (error: unknown) => reportError(t, error);
   const { emptyLabel, fallbackModel = null, ...pickerProps } = task;
   const [open, setOpen] = useState(false);
+  const [effortOpen, setEffortOpen] = useState(false);
   // `/model sonnet`、`/model @task` 带来的搜索词和范围；点胶囊打开时没有。
   const [request, setRequest] = useState<ModelPickerRequest | null>(null);
   const [pendingLevel, setPendingLevel] = useState<ThinkingLevel | null>(null);
@@ -149,20 +151,33 @@ export function ModelChip(task: ModelChipProps) {
           )}
         </button>
         {showEffort && (
-          <button
-            type="button"
-            className="ui-chip chip-effort"
-            data-testid="chip-thinking"
-            data-level={thinkingLevel}
-            data-running={task.running || undefined}
-            aria-label={fastText === null ? effortText : `${effortText} · ${fastText}`}
-            title={withShortcut(fastText === null ? effortText : `${effortText} · ${fastText}`, "Alt T")}
-            onMouseDown={keepFocus}
-            onClick={cycleThinking}
-          >
-            {fastBolt}
-            <EffortBars total={efforts.length} lit={lit} />
-          </button>
+          <div className="ui-popover-anchor effort-pop-anchor">
+            <button
+              type="button"
+              className="ui-chip chip-effort"
+              data-testid="chip-thinking"
+              data-level={thinkingLevel}
+              data-running={task.running || undefined}
+              aria-haspopup="dialog"
+              aria-expanded={effortOpen}
+              aria-label={fastText === null ? effortText : `${effortText} · ${fastText}`}
+              title={withShortcut(fastText === null ? effortText : `${effortText} · ${fastText}`, "Alt T")}
+              onMouseDown={keepFocus}
+              onClick={() => setEffortOpen((value) => !value)}
+            >
+              {fastBolt}
+              <EffortBars total={efforts.length} lit={lit} />
+            </button>
+            <EffortPopover
+              open={effortOpen}
+              onClose={() => setEffortOpen(false)}
+              levels={levels}
+              value={thinkingLevel}
+              onSelect={(level) => {
+                setThinking(level).catch(report);
+              }}
+            />
+          </div>
         )}
       </div>
       <ModelPicker
@@ -187,7 +202,7 @@ function EffortBars({ total, lit }: { total: number; lit: number }) {
   return (
     <span className="effort-bars" aria-hidden="true">
       {Array.from({ length: total }, (_, i) => {
-        const height = total === 1 ? 12 : Math.round(4 + (8 * i) / (total - 1));
+        const height = total === 1 ? 10 : Math.round(4 + (6 * i) / (total - 1));
         const style = { "--i": i, "--t": total === 1 ? 1 : i / (total - 1), height } as CSSProperties;
         return <span key={i} className="effort-bar" data-lit={i < lit || undefined} style={style} />;
       })}

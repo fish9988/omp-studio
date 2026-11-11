@@ -2,11 +2,13 @@
 // 支持 Claude 像素蟹（crab，19 套双层墨水遮罩精灵表）、DeepSeek 小鲸鱼（deepy，18 套 5× 矢量精灵表）、
 // DeepSeek 像素鲸鱼娘（whalegirl，22 套可变帧率像素条带）、OMP 像素 π（omp）与关闭（off）。
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import type { MascotCharacter, TaskStatus } from "../../../../shared/ipc.ts";
+import type { MascotCharacter, TaskState, TaskStatus } from "../../../../shared/ipc.ts";
 import { useShellValue } from "../../app/shell-store.ts";
+import { useT } from "../../i18n/use-t.ts";
 import { useSettings } from "../../store/settings-store.ts";
 import { systemReducesMotion } from "../settings/motion-preference.ts";
 import crabUrlsRaw from "./crab-urls.json";
+import { formatCount, formatMoney } from "./usage-format.ts";
 
 type MascotAnimKey =
   | "idle"
@@ -279,10 +281,13 @@ function OmpPiSvg({ status, poked }: { status: TaskStatus; poked: boolean }) {
 export function ClawdMascot({
   status = "idle",
   characterOverride,
+  sessionUsage = null,
 }: {
   status?: TaskStatus | undefined;
   characterOverride?: MascotCharacter;
+  sessionUsage?: TaskState["sessionUsage"] | undefined;
 }) {
+  const t = useT();
   const storedCharacter = useShellValue("mascot") ?? "clawd";
   const character = characterOverride ?? storedCharacter;
   const settings = useSettings();
@@ -297,6 +302,7 @@ export function ClawdMascot({
   const [pointerState, setPointerState] = useState<MascotAnimKey | null>(null);
   const [ambientState, setAmbientState] = useState<MascotAnimKey>("idle");
   const [runningStep, setRunningStep] = useState(0);
+  const [hovered, setHovered] = useState(false);
 
   // 空闲时周期性触发小动作（左顾右盼、招手/喷水、掏出笔记本电脑打字）
   useEffect(() => {
@@ -452,6 +458,21 @@ export function ClawdMascot({
 
   if (character === "off") return null;
 
+  const hasBubble =
+    sessionUsage !== null && sessionUsage !== undefined && (sessionUsage.cost > 0 || sessionUsage.tokens.total > 0);
+  const bubble = hasBubble ? (
+    <span className="composer-mascot-bubble" data-open={hovered ? "" : undefined} aria-hidden="true">
+      <span className="composer-mascot-bubble-row">
+        <span className="composer-mascot-bubble-label">{t("composer.mascotCost")}</span>
+        <span className="composer-mascot-bubble-figure">{formatMoney(sessionUsage.cost)}</span>
+      </span>
+      <span className="composer-mascot-bubble-row" data-row="sub">
+        <span className="composer-mascot-bubble-label">{t("composer.mascotTokens")}</span>
+        <span className="composer-mascot-bubble-figure">{formatCount(sessionUsage.tokens.total)}</span>
+      </span>
+    </span>
+  ) : null;
+
   if (character === "omp") {
     return (
       <div
@@ -460,11 +481,14 @@ export function ClawdMascot({
         data-state={pointerState ? "waiting" : status}
         aria-hidden="true"
         data-testid="composer-crab"
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
         onClick={() => {
           setPointerState("happy");
           window.setTimeout(() => setPointerState(null), 650);
         }}
       >
+        {bubble}
         <OmpPiSvg status={status} poked={pointerState !== null} />
       </div>
     );
@@ -492,7 +516,7 @@ export function ClawdMascot({
       return;
     }
     const now = performance.now();
-    const recent = clickTimesRef.current.filter((t) => now - t < 450);
+    const recent = clickTimesRef.current.filter((item) => now - item < 450);
     recent.push(now);
     clickTimesRef.current = recent;
     if (recent.length >= 4) {
@@ -519,10 +543,14 @@ export function ClawdMascot({
       </span>
       <span
         className="composer-mascot-hit"
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-      />
+      >
+        {bubble}
+      </span>
     </span>
   );
 }

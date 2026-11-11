@@ -7,10 +7,10 @@
   z-index: calc(var(--z-sticky) + 1);
   flex: none;
   container-type: inline-size;
-  width: min(calc(100% - 28px), calc(var(--content-w) + var(--composer-grow-w, 0px)));
+  width: min(calc(100% - 2 * var(--gutter)), calc(var(--content-w) + var(--composer-grow-w, 0px)));
   margin: 0 auto;
   padding-bottom: var(--space-4);
-  transition: width 180ms var(--ease-out);
+  transition: width var(--dur-base) var(--ease-out);
 }
 /* 内容从输入框后面淡出，而不是被切断。 */
 .composer-stack::before {
@@ -256,6 +256,7 @@
 }
 /* 工具行里的文件夹标签（PathLabel，只读）：高度和左右内边距同 .ui-chip，和模型 / 审批 / 会话开关对齐；没有底色，不能点。 */
 .composer-tools > .empty-project {
+  flex-shrink: 100;
   height: var(--control-h-sm);
   padding: 0 var(--chip-pad);
 }
@@ -397,12 +398,12 @@ button.usage-context:hover,
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  height: 12px;
+  height: 10px;
 }
-/* 刻度是 12px 高的盒子，居中在 28px 的胶囊里，底边比文字基线低 2px（行盒里基线在中心线下方约 1px，字母在基线上方）——
-   看上去刻度整体偏下。上提 2px，让竖条的底边落在模型名的基线上。 */
+/* 刻度是 10px 高的盒子（与 13px Anthropic Sans 大写字高 10px 一致），居中在 28px 的胶囊里时底边略低于基线——
+   上提 1px，让竖条底边落在模型名基线上，同时垂直中心与大写字母中心对齐。 */
 .ui-chip.chip-effort > .effort-bars {
-  translate: 0 -2px;
+  translate: 0 -1px;
 }
 .effort-bar {
   width: 2px;
@@ -469,8 +470,9 @@ button.usage-context:hover,
   }
 }
 /* 工具行放不下时的让位顺序：先是项目路径（缩到只剩文件夹图标），模型名最后。 */
-.composer-tools > .empty-project {
+.composer-tools > .empty-project-btn {
   flex-shrink: 100;
+  height: var(--control-h-sm);
 }
 /* 再窄（比如右侧开着文件预览）工具行折成两行：左边模型、审批一行，右边的计数、用量、发送换到下一行靠右，模型名不再被挤没。 */
 @container (max-width: 400px) {
@@ -531,11 +533,17 @@ button.usage-context:hover,
   stroke: var(--text-2);
   stroke-width: 1.5;
 }
-.usage-context[data-high] {
+.usage-context[data-warn] {
   color: var(--st-waiting-text);
 }
-.usage-context[data-high] .usage-ring-fill {
+.usage-context[data-warn] .usage-ring-fill {
   stroke: var(--st-waiting);
+}
+.usage-context[data-high] {
+  color: var(--st-error);
+}
+.usage-context[data-high] .usage-ring-fill {
+  stroke: var(--st-error);
 }
 
 /* 上下文构成（照 Claude Code 的 /context）：分段横条 + 每类一行 */
@@ -1768,4 +1776,505 @@ button.usage-context:hover,
   color: var(--text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ───────── 思考强度滑块弹层（DSH effort-picker） ───────── */
+.effort-pop-anchor {
+  display: inline-flex;
+  flex: none;
+}
+.effort-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-1-5) var(--space-2) var(--space-2);
+  min-width: 0;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+.effort-pop-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.effort-pop-label {
+  flex: none;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-xs);
+  color: var(--text-2);
+}
+.effort-pop-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-xs);
+  color: var(--text);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.effort-pop:is([data-level="medium"], [data-level="high"]) .effort-pop-value {
+  color: var(--accent);
+}
+.effort-pop:is([data-level="xhigh"], [data-level="max"]) .effort-pop-value {
+  color: color-mix(in oklch, var(--accent), var(--st-waiting) 45%);
+}
+.effort-pop-ends {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  line-height: 14px;
+  color: var(--text-3);
+}
+.effort-pop-track {
+  position: relative;
+  height: 30px;
+  margin-top: 2px;
+  cursor: pointer;
+  touch-action: none;
+}
+.effort-pop-track:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+.effort-pop-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 8px;
+  background: var(--bg-hover);
+}
+.effort-pop-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 8px 0 0 8px;
+  background: color-mix(in srgb, var(--text) 22%, transparent);
+  transition:
+    width var(--dur-base) var(--ease-out),
+    opacity var(--dur-fade) var(--ease-out);
+  pointer-events: none;
+}
+.effort-pop-ticks {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--dur-fade) var(--ease-out);
+  pointer-events: none;
+}
+.effort-pop-tick {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text) 24%, transparent);
+}
+.effort-pop-matrix {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  display: none;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 8px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.effort-pop[data-apex] .effort-pop-matrix {
+  display: block;
+}
+.effort-pop-matrix-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.effort-pop[data-apex] .effort-pop-fill,
+.effort-pop[data-apex] .effort-pop-ticks {
+  opacity: 0;
+}
+.effort-pop-knob {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 16px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(20, 20, 19, 0.28),
+    0 0 0 1px rgba(20, 20, 19, 0.08);
+  scale: 1;
+  transition:
+    translate var(--dur-base) var(--ease-out),
+    scale var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fade) var(--ease-out),
+    box-shadow var(--dur-fade) var(--ease-out);
+  pointer-events: none;
+}
+.effort-pop[data-apex] .effort-pop-knob {
+  background: color-mix(in srgb, var(--accent) 22%, #ffffff);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--accent) 76%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 36%, transparent);
+}
+.effort-pop[data-dragging] .effort-pop-knob {
+  scale: 1.1;
+  transition:
+    scale var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fade) var(--ease-out),
+    box-shadow var(--dur-fade) var(--ease-out);
+}
+.effort-pop[data-dragging] .effort-pop-fill {
+  transition: none;
+}
+
+/* ───────── 工具行：添加图片按钮 & 会话遥测药丸 ───────── */
+.composer-attach-btn {
+  flex: none;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0;
+  justify-content: center;
+  color: var(--text-2);
+}
+.composer-attach-btn:not(:disabled):hover {
+  color: var(--text);
+}
+.composer-attach-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.composer-telem {
+  flex: none;
+  height: var(--control-h-sm);
+  padding: 0 var(--space-1-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.composer-telem:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.composer-telem[data-tier="high"] {
+  color: var(--st-done);
+}
+.composer-telem[data-tier="mid"] {
+  color: var(--text-2);
+}
+.composer-telem:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@container (max-width: 560px) {
+  .composer-telem {
+    display: none;
+  }
+}
+
+/* ───────── 宠物悬停像素气泡（DSH mascot-bubble） ───────── */
+.composer-mascot-bubble {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: none;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  row-gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-overlay);
+  box-shadow:
+    0 -2px 0 0 var(--accent),
+    0 2px 0 0 var(--accent),
+    -2px 0 0 0 var(--accent),
+    2px 0 0 0 var(--accent);
+  color: var(--text);
+  font-family: "Claude Style Pixel", var(--font-mono);
+  font-size: 12px;
+  line-height: 12px;
+  font-weight: 400;
+  font-synthesis: none;
+  -webkit-font-smoothing: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.composer-mascot-bubble[data-open] {
+  display: grid;
+}
+.composer-mascot-bubble::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 14px;
+  width: 2px;
+  height: 2px;
+  background: var(--accent);
+  box-shadow:
+    -2px 0 0 0 var(--accent),
+    -4px 0 0 0 var(--accent),
+    -2px 2px 0 0 var(--accent);
+}
+.composer-mascot-bubble-row {
+  display: contents;
+}
+.composer-mascot-bubble-label {
+  grid-column: 1;
+}
+.composer-mascot-bubble-figure {
+  grid-column: 2;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.composer-mascot-bubble-row[data-row="sub"] > * {
+  color: var(--text-3);
+}
+
+/* ───────── 运行等待三车道点阵加载器（DSH chat-wait） ───────── */
+.wait-dots {
+  --wait-dot-travel: 8px;
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  height: 14px;
+}
+.wait-dots-lane {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+.wait-dots-lane.is-active {
+  opacity: 1;
+}
+.wait-dots-dot {
+  --wait-dot-centre: 0px;
+  --wait-dot-line-x: 0;
+  --wait-dot-line-y: -1;
+  --wait-dot-end-x: calc(var(--wait-dot-centre) + var(--wait-dot-line-x) * var(--wait-dot-travel));
+  --wait-dot-end-y: calc((var(--wait-dot-line-y) - 1) * var(--wait-dot-travel));
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transform-origin: 50% 100%;
+}
+.wait-dots-lane.is-bounce .wait-dots-dot:nth-child(2),
+.wait-dots-lane.is-line .wait-dots-dot:nth-child(2) {
+  left: 7px;
+}
+.wait-dots-lane.is-bounce .wait-dots-dot:nth-child(3),
+.wait-dots-lane.is-line .wait-dots-dot:nth-child(3) {
+  left: 14px;
+}
+.wait-dots-lane.is-bounce .wait-dots-dot {
+  animation: wait-dot-bounce 520ms var(--ease-out) infinite alternate;
+  animation-play-state: var(--play-state);
+}
+.wait-dots-lane.is-bounce .wait-dots-dot:nth-child(1) {
+  animation-delay: -520ms;
+}
+.wait-dots-lane.is-bounce .wait-dots-dot:nth-child(2) {
+  animation-delay: -312ms;
+}
+.wait-dots-lane.is-bounce .wait-dots-dot:nth-child(3) {
+  animation-delay: -208ms;
+}
+.wait-dots-lane.is-line .wait-dots-dot {
+  animation: wait-dot-line 1140ms var(--ease-in-out) infinite;
+  animation-delay: -285ms;
+  animation-play-state: var(--play-state);
+}
+.wait-dots-lane.is-line .wait-dots-dot:nth-child(1) {
+  --wait-dot-centre: 7px;
+}
+.wait-dots-lane.is-line .wait-dots-dot:nth-child(2) {
+  --wait-dot-line-x: -0.866;
+  --wait-dot-line-y: -0.5;
+  animation-delay: -665ms;
+}
+.wait-dots-lane.is-line .wait-dots-dot:nth-child(3) {
+  --wait-dot-centre: -7px;
+  --wait-dot-line-x: -0.866;
+  --wait-dot-line-y: 0.5;
+  animation-delay: -1045ms;
+}
+.wait-dots-lane.is-orbit .wait-dots-dot {
+  top: 50%;
+  bottom: auto;
+  left: 50%;
+  margin: -2px 0 0 -2px;
+  animation: wait-dot-orbit-1 2800ms linear infinite;
+  animation-play-state: var(--play-state);
+}
+.wait-dots-lane.is-orbit .wait-dots-dot:nth-child(2) {
+  animation-name: wait-dot-orbit-2;
+}
+.wait-dots-lane.is-orbit .wait-dots-dot:nth-child(3) {
+  animation-name: wait-dot-orbit-4;
+}
+.wait-dots-lane.is-orbit .wait-dots-dot:nth-child(4) {
+  animation-name: wait-dot-orbit-3;
+}
+@keyframes wait-dot-bounce {
+  0% {
+    translate: 0 0;
+    scale: 1.65 0.3;
+  }
+  40% {
+    translate: 0 calc(-2 * var(--wait-dot-travel) / 5);
+    scale: 1;
+  }
+  100% {
+    translate: 0 calc(-1 * var(--wait-dot-travel));
+    scale: 1;
+  }
+}
+@keyframes wait-dot-line {
+  0%,
+  100% {
+    translate: calc(2 * var(--wait-dot-centre) - var(--wait-dot-end-x))
+      calc(-2 * var(--wait-dot-travel) - var(--wait-dot-end-y));
+    scale: 1;
+  }
+  25%,
+  75% {
+    scale: 0.72;
+  }
+  50% {
+    translate: var(--wait-dot-end-x) var(--wait-dot-end-y);
+    scale: 1;
+  }
+}
+@keyframes wait-dot-orbit-1 {
+  0% {
+    translate: -4.75px -5.8px;
+  }
+  8% {
+    translate: 2.9px 5.58px;
+  }
+  17%,
+  50% {
+    translate: 4.75px 5.8px;
+  }
+  58% {
+    translate: -2.9px -5.58px;
+  }
+  67%,
+  100% {
+    translate: -4.75px -5.8px;
+  }
+}
+@keyframes wait-dot-orbit-2 {
+  0%,
+  25% {
+    translate: 4.75px -5.8px;
+  }
+  33% {
+    translate: -2.9px 5.58px;
+  }
+  42%,
+  75% {
+    translate: -4.75px 5.8px;
+  }
+  83% {
+    translate: 2.9px -5.58px;
+  }
+  92%,
+  100% {
+    translate: 4.75px -5.8px;
+  }
+}
+@keyframes wait-dot-orbit-4 {
+  0% {
+    translate: 4.75px 5.8px;
+  }
+  8% {
+    translate: -2.9px -5.58px;
+  }
+  17%,
+  50% {
+    translate: -4.75px -5.8px;
+  }
+  58% {
+    translate: 2.9px 5.58px;
+  }
+  67%,
+  100% {
+    translate: 4.75px 5.8px;
+  }
+}
+@keyframes wait-dot-orbit-3 {
+  0%,
+  25% {
+    translate: -4.75px 5.8px;
+  }
+  33% {
+    translate: 2.9px -5.58px;
+  }
+  42%,
+  75% {
+    translate: 4.75px -5.8px;
+  }
+  83% {
+    translate: -2.9px 5.58px;
+  }
+  92%,
+  100% {
+    translate: -4.75px 5.8px;
+  }
+}
+@keyframes run-activity-sweep {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+.run-activity[data-shimmer] {
+  background: linear-gradient(
+    90deg,
+    var(--text-2) 0%,
+    var(--text-2) 38%,
+    var(--text) 50%,
+    var(--text-2) 62%,
+    var(--text-2) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: run-activity-sweep var(--dur-breathe) var(--tick-sweep) infinite;
+  animation-play-state: var(--play-state);
 }

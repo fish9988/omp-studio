@@ -4,6 +4,7 @@ import { app, screen, type BrowserWindow, type Rectangle } from "electron";
 import path from "node:path";
 import {
   brandStyles,
+  conversationViews,
   helperThinkingLevels,
   historyOrders,
   limits,
@@ -31,6 +32,8 @@ const defaultShellState: ShellState = {
   helperThinking: "off",
   autoSmartRename: false,
   preferredShell: "auto",
+  conversationView: "chat",
+  homeRipple: true,
 };
 interface WindowBounds {
   x: number;
@@ -166,6 +169,20 @@ function load(): PersistedState {
   try {
     if (raw["preferredShell"] !== undefined) {
       shell.preferredShell = parseOneOf(raw["preferredShell"], "preferredShell", preferredShells);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["conversationView"] !== undefined) {
+      shell.conversationView = parseOneOf(raw["conversationView"], "conversationView", conversationViews);
+    }
+  } catch {
+    // 保留默认值。
+  }
+  try {
+    if (raw["homeRipple"] !== undefined) {
+      shell.homeRipple = parseBoolean(raw["homeRipple"], "homeRipple");
     }
   } catch {
     // 保留默认值。

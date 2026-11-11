@@ -27,6 +27,7 @@ const rootStyle = getComputedStyle(document.documentElement);
 void Promise.all([
   loadStartupSnapshot(),
   document.fonts.load(`13px ${rootStyle.getPropertyValue("--font-sans")}`),
+  document.fonts.load(`15px ${rootStyle.getPropertyValue("--font-display")}`),
   document.fonts.load(`13px ${rootStyle.getPropertyValue("--font-mono")}`),
 ]).then(() =>
   createRoot(container).render(

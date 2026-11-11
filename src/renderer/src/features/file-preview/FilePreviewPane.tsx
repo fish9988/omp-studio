@@ -6,6 +6,7 @@ import { useT } from "../../i18n/use-t.ts";
 import { Close, Restart } from "../../icons.tsx";
 import { IconButton, Tabs } from "../../ui/controls.tsx";
 import { useTask } from "../../store/index.ts";
+import { WorkbenchStrip } from "../workbench/WorkbenchStrip.tsx";
 import { FileTree } from "./FileTree.tsx";
 import { PreviewPage } from "./PreviewPage.tsx";
 import { WorkspaceRoots } from "./WorkspaceRoots.tsx";
@@ -121,6 +122,7 @@ export function FilePreviewPane({
         }}
         onKeyDown={onResizerKey}
       />
+      <WorkbenchStrip active="files" taskId={taskId} />
       <header className="file-preview-head">
         <Tabs
           tabs={[

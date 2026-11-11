@@ -89,4 +89,16 @@ export const composer = {
   enhanceDone: "Prompt enhanced",
   enhanceUndo: "Undo",
   enhanceUndoTip: "Restore the original prompt before enhancement",
+  effortTitle: "Reasoning effort",
+  effortFaster: "Faster",
+  effortSmarter: "Smarter",
+  attachImage: "Attach image",
+  mascotCost: "Cost",
+  mascotTokens: "Tokens",
+  telemetryTurns: {
+    one: "{n} turn",
+    other: "{n} turns",
+  },
+  telemetryCache: "{p}% cache",
+  telemetryTip: "Session turns and cache hit rate (click for usage)",
 } satisfies Record<keyof typeof zhCN, MessageEntry>;

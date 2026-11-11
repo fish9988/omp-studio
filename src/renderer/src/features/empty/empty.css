@@ -1,12 +1,23 @@
-/* 空状态：输入框贴主区底部（和对话时同一位置），上方是从顶部排下来的概览：标志 + 标题、本周用量（spec §4.7）。 */
+/* 空状态（Studio 首页，spec §4.7）：背景字符波纹场 + 贴底草稿输入框；上方在剩余空间里竖直居中排布标志标题与 Bento 用量仪表盘。 */
 .empty {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
   min-height: 0;
   padding: 0 var(--gutter);
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.empty-ripple-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* 加载中 / 出错：没有输入框，引导卡片在面板中间 */
@@ -16,22 +27,16 @@
   gap: var(--space-6);
 }
 
-.empty > * {
-  width: min(100%, var(--content-w));
-  flex: none;
-}
-
-/* 概览在输入框上方的空间里竖直居中；比窗口高时整个 .empty 滚动（不缩，safe 保证不从顶上被切掉），输入框 sticky 贴底 */
 .empty-main {
   display: flex;
   flex: 1 0 auto !important;
   flex-direction: column;
   justify-content: safe center;
-  gap: var(--space-6);
-  padding: var(--space-8) 0 var(--space-6);
+  gap: var(--space-4);
+  width: min(100%, var(--content-w));
+  padding: var(--space-6) 0 var(--space-4);
 }
 
-/* 标志（omp 式像素 π + 字）居中，下面是"最近更新"（TSP 过程区顶部的 StudioHeader） */
 .empty-hero {
   display: flex;
   flex-direction: column;
@@ -46,12 +51,12 @@
   height: auto;
 }
 
-/* 新任务页顶部一行：π | 标题；"最近更新"在第二行，和标题左对齐（不在 π 下面） */
+/* 新任务页顶部一行：π | 标题；"最近更新"在第二行，和标题左对齐 */
 .empty-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--space-3);
+  column-gap: var(--space-2-5);
 }
 
 .empty-mark {
@@ -64,36 +69,70 @@
 
 .empty-title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  line-height: var(--lh-xl);
-  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 500;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
-/* ───────── 本周用量卡片：白底 + 1px 淡描边，不加阴影 ───────── */
+/* ───────── Bento 用量仪表盘面板（DSH Studio 暖灰柔面 + 数据蓝阶） ───────── */
 .eu {
+  --eu-data-ink: #3b6ecf;
+  --eu-axis-w: 36px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 12px;
+  width: min(100%, 520px);
   min-width: 0;
-  padding: var(--space-5);
-  background: var(--bg-raised);
+  padding: 12px;
+  background: color-mix(in srgb, var(--text) 4%, var(--bg-raised));
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
 }
 
-.eu-head {
+.eu-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 8px;
   min-width: 0;
 }
 
-.eu-head > div {
-  min-width: 0;
+.eu-tabs,
+.eu-ranges {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.eu-pill {
+  appearance: none;
+  margin: 0;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.eu-pill:hover:not([data-active]) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.eu-pill[data-active] {
+  background: color-mix(in srgb, var(--text) 10%, var(--bg-raised));
+  color: var(--text);
+  font-weight: 500;
 }
 
 .eu-label {
@@ -104,56 +143,6 @@
   color: var(--text-2);
 }
 
-.eu-figures {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--space-2);
-  min-height: 36px;
-}
-
-.eu-total {
-  font-size: 28px;
-  line-height: 36px;
-  font-weight: 600;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.eu-cost {
-  font-size: var(--fs-base);
-  line-height: var(--lh-base);
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* 加载中：数字的位置放一条同高的灰条，不闪 */
-.eu-placeholder {
-  align-self: center;
-  width: 160px;
-  max-width: 100%;
-  height: 28px;
-  background: var(--bg-hover);
-  border-radius: var(--radius-md);
-}
-
-.eu-chip {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  height: 22px;
-  padding: 0 var(--space-2);
-  font-size: var(--fs-xs);
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  background: var(--bg-hover);
-  border-radius: var(--radius-md);
-}
-
-/* 没有统计库时只有"标题 + 一句说明"：说明比标题轻一档，两行贴在一起（2026-10-29：原来说明 --fs-base 比标题还重，卡片空出 100 高） */
 .eu-note {
   margin: 0;
   font-size: var(--fs-sm);
@@ -166,31 +155,342 @@
   gap: var(--space-1);
 }
 
-/* 点阵：每天一列，从下往上亮，铺满卡片宽（SVG 按 viewBox 等比缩放，点保持圆）。没用量的格子是很淡的点，
-   较早的日子是淡灰，最近 7 天是淡一档的强调色，只有今天是满强调色 */
-.eu-chart {
+/* 3×2 指标磁贴 */
+.eu-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .eu-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.eu-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 6%, var(--bg-raised));
+}
+
+.eu-stat-label {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eu-stat-value {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eu-stat[data-stat="model"] .eu-stat-value {
+  font-weight: 400;
+}
+
+.eu-stat[data-skeleton] .eu-stat-value {
+  display: block;
+  width: 48px;
+  height: 13px;
+  margin: 2px 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+/* 26 周 × 7 行方格热力图（周日为首行，数据蓝 4 档色阶） */
+.eu-heat {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  align-content: start;
+  contain: layout style;
+}
+
+.eu-heat-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.eu-heat-cell[data-level="1"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 22%, transparent);
+}
+
+.eu-heat-cell[data-level="2"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 44%, transparent);
+}
+
+.eu-heat-cell[data-level="3"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 68%, transparent);
+}
+
+.eu-heat-cell[data-level="4"] {
+  background: var(--eu-data-ink);
+}
+
+.eu-heat[data-skeleton] .eu-heat-cell {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+/* 热力图跟随反色胶囊提示 */
+.eu-heat-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg-raised);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.eu-heat-tip[data-shown] {
+  opacity: 1;
+}
+
+.eu-yardstick {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-3);
+}
+
+/* ───────── 模型页：152px 每日堆叠柱状图 + 排名列表 ───────── */
+.eu-mchart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eu-mchart-plot {
+  position: relative;
+  height: 148px;
+  margin-left: var(--eu-axis-w);
+}
+
+.eu-mchart-tick {
+  position: absolute;
+  left: calc(-1 * var(--eu-axis-w));
+  width: calc(var(--eu-axis-w) - 6px);
+  transform: translateY(50%);
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.eu-mchart-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.eu-mchart-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  transform-origin: 50% 100%;
+  animation: eu-bar-grow 240ms var(--ease-out) both;
+}
+
+@keyframes eu-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.eu-mchart-seg {
   display: block;
   width: 100%;
-  height: auto;
 }
 
-.eu-dot {
-  fill: var(--border-subtle);
+.eu-mchart-axis {
+  position: relative;
+  height: 14px;
+  margin-left: var(--eu-axis-w);
 }
 
-.eu-dot[data-on] {
-  fill: color-mix(in srgb, var(--text-3) 55%, transparent);
+.eu-mchart-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.eu-dot[data-on][data-recent] {
-  fill: color-mix(in srgb, var(--accent) 60%, transparent);
+.eu-mchart-label:first-child {
+  transform: none;
 }
 
-.eu-dot[data-on][data-today] {
-  fill: var(--accent);
+.eu-mchart-label[data-end] {
+  transform: translateX(-100%);
 }
 
-/* 最近更新（照 omp 的 What's New）：标志下面一行；窄了截断（title 里有全文） */
+.eu-mchart-seg[data-rank="0"],
+.eu-model-swatch[data-rank="0"] {
+  background: var(--eu-data-ink);
+}
+
+.eu-mchart-seg[data-rank="1"],
+.eu-model-swatch[data-rank="1"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 80%, transparent);
+}
+
+.eu-mchart-seg[data-rank="2"],
+.eu-model-swatch[data-rank="2"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 66%, transparent);
+}
+
+.eu-mchart-seg[data-rank="3"],
+.eu-model-swatch[data-rank="3"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 54%, transparent);
+}
+
+.eu-mchart-seg[data-rank="4"],
+.eu-model-swatch[data-rank="4"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 44%, transparent);
+}
+
+.eu-mchart-seg[data-rank="5"],
+.eu-model-swatch[data-rank="5"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 34%, transparent);
+}
+
+.eu-mchart-seg[data-rank="6"],
+.eu-model-swatch[data-rank="6"] {
+  background: color-mix(in srgb, var(--eu-data-ink) 24%, transparent);
+}
+
+.eu-mchart-seg[data-rank="7"],
+.eu-model-swatch[data-rank="7"] {
+  background: #b9b5ac;
+}
+
+.eu-models {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eu-model-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.eu-model-swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.eu-model-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.eu-model-tokens {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.eu-model-share {
+  flex: none;
+  width: 46px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.eu-models-more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.eu-models-more:hover {
+  color: var(--text);
+}
+
+.eu-models-empty {
+  padding: 18px 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.eu-models[data-skeleton] .eu-model-swatch {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+/* 最近更新（照 omp 的 What's New）：标志下面一行；窄了截断 */
 .whats-new {
   max-width: 100%;
   margin: 0;
@@ -203,7 +503,6 @@
   white-space: nowrap;
   transition: opacity calc(var(--dur-slow) * 4) var(--ease-in-out);
 }
-/* 显示 5 秒后慢慢淡出（WhatsNew.tsx），位置留着，标志不跳 */
 .whats-new[data-fading] {
   opacity: 0;
 }
@@ -222,7 +521,7 @@
   border-radius: var(--radius-xl);
 }
 
-/* 工具行里审批胶囊右边的项目标签：纯文字（文件夹图标 + 文件夹路径），不画成胶囊，不能点 */
+/* 工作区文件夹标签（任务内只读 span；首页草稿外包可点击 chip 按钮切换项目） */
 .empty-project {
   display: inline-flex;
   flex: 0 1 auto;
@@ -233,15 +532,53 @@
   font-size: var(--fs-sm);
   color: var(--text-2);
 }
-/* 工具行挤的时候先缩路径文字，文件夹图标始终保留 */
+
 .empty-project > svg {
   flex: none;
+}
+
+.empty-project-btn {
+  appearance: none;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.empty-project-btn:hover,
+.empty-project-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+  color: var(--text);
+}
+
+.empty-project-btn > .empty-project {
+  padding: 0 2px;
+  color: inherit;
+}
+
+.empty-project-caret {
+  flex: none;
+  color: var(--text-3);
 }
 
 /* 路径太长时省略开头（rtl + 里面的 bdi），末尾的文件夹名总看得见 */
 .empty-project-name {
   min-width: 0;
-  max-width: 40ch;
+  max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -285,9 +622,6 @@
   box-shadow: var(--shadow-2);
 }
 
-/* 输入框自带 gutter 内缩的列宽；把外层撑开 gutter，让它和标题、继续列表左右对齐。
-   概览比窗口高时 .empty 滚动，输入框 sticky 贴底（输入框自己的 ::before 让内容从它后面淡出）；
-   sticky 会建层叠上下文，层级照输入框（composer.css .composer-stack）给，弹出菜单不被盖住 */
 .empty-draft {
   position: sticky;
   bottom: 0;
@@ -299,5 +633,9 @@
   width: calc(min(100%, var(--content-w)) + var(--composer-grow-w, 0px) + 2 * var(--gutter));
   max-width: calc(100vw - var(--sidebar-w, 240px));
   margin-inline: calc(var(--gutter) * -1);
-  transition: width 180ms var(--ease-out);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+#app[data-motion="reduced"] .eu-mchart-col {
+  animation: none;
 }

@@ -33,6 +33,7 @@ import { useDraftView } from "./use-draft-view.ts";
 import { useFileMenu } from "./use-file-menu.ts";
 import { useNewTaskDefault } from "./use-new-task-default.ts";
 import { clearFirstPrompt, setFirstPrompt } from "../tsp/first-prompt-store.ts";
+import { AttachButton } from "./AttachButton.tsx";
 import { ClawdMascot } from "./ClawdMascot.tsx";
 import { EnhancePromptButton } from "./EnhancePromptButton.tsx";
 import "./composer.css";
@@ -245,6 +246,7 @@ export function DraftComposer({ projectId, projectTools }: { projectId: ProjectI
           <ApprovalChip projectId={projectId} forgetTaskId={null} />
           {projectTools}
           <span className="composer-spacer" />
+          <AttachButton addFiles={attach.addFiles} acceptsImages={model?.acceptsImages} disabled={sending} />
           <EnhancePromptButton
             draftKey={key}
             text={draft.text}

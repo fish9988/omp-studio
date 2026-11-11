@@ -3,12 +3,13 @@
 // 这类整段重建对话，omp 删掉旧节点重画）就不再画：终端里重建也会清掉状态行（omp 18.12.5 实录 session-tree-compacted.jsonl）。
 // 状态行最多露两行：MCP 工具多时启动的 `xdev: xd://: mounted …` 会列出全部工具名，占满一屏（2026-11-06 仓库所有者），
 // 多出的收进和工具输出一样的"N more lines"。
-import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
 import type { DocNode, DocSurface, TspDocument } from "../../../../shared/tsp/document.ts";
 import type { StatusNote } from "../../../../shared/tsp/status-notes.ts";
 import { useShellValue } from "../../app/shell-store.ts";
 import { ChevronDown, Code, External, FileIcon, Globe } from "../../icons.tsx";
+import { openReview } from "../../store/review-store.ts";
 import { currentLocale } from "../../store/settings-store.ts";
 import { openFilePreview, openInlineArtifact, type InlineArtifact } from "../file-preview/index.ts";
 import { Clamp } from "./Clamp.tsx";
@@ -924,10 +925,13 @@ function DeliverableShelf({ ctx, items }: { ctx: TspContext; items: readonly Del
               type="button"
               className="tsp-ag-review-btn"
               onClick={() => {
+                const hasDiskFile = changedFiles.some((item) => item.filePath !== undefined);
+                if (hasDiskFile) {
+                  openReview(ctx.taskId);
+                  return;
+                }
                 const first = changedFiles[0];
-                if (!first) return;
-                if (first.filePath !== undefined) openFilePreview(ctx.taskId, first.filePath);
-                else if (first.artifact !== undefined) openInlineArtifact(ctx.taskId, first.artifact);
+                if (first?.artifact !== undefined) openInlineArtifact(ctx.taskId, first.artifact);
               }}
               data-testid="tsp-ag-changes-review"
             >
@@ -1134,6 +1138,10 @@ function ProcessGroup({
   const bodyRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const layout = useShellValue("processRows") ?? "column";
+  const conversationView = useShellValue("conversationView") ?? "chat";
+  const isTrajectory = conversationView === "trajectory";
+  const effectiveFolded = isTrajectory ? false : folded;
+  const effectiveFoldExplore = isTrajectory ? false : foldExplore;
   const zh = currentLocale() === "zh-CN";
   const label = formatProcessSummary(thoughts, tools);
   const extraTurnMs = useSessionExtras(ctx.taskId, (extras) =>
@@ -1159,47 +1167,72 @@ function ProcessGroup({
       .join(" · ");
   })();
 
-  const { items: renderItems, hasExploreRuns } = foldExplorationIds(ctx.taskId, ctx.sf, ids, foldExplore);
+  const { items: renderItems, hasExploreRuns } = foldExplorationIds(ctx.taskId, ctx.sf, ids, effectiveFoldExplore);
+
+  const applyDetailsFold = useCallback(
+    (expand: boolean) => {
+      const targets: { node: DocNode; initialCollapsed: boolean }[] = [];
+      for (const id of ids) {
+        const node = peekTspNode(ctx.taskId, ctx.sf, id);
+        if (!node || node.p["collapsible"] !== true) continue;
+        const role = node.p["role"];
+        const isThinking = typeof role === "string" && role.startsWith("omp.thinking");
+        const headId = typeof node.p["head"] === "string" ? node.p["head"] : null;
+        const headNode = headId !== null ? peekTspNode(ctx.taskId, ctx.sf, headId) : null;
+        const thoughtDone = isThinking && headNode?.k === "text";
+        const initialCollapsed = node.p["collapsed"] === true || thoughtDone;
+        targets.push({ node, initialCollapsed });
+      }
+      setNodesFolded(ctx.taskId, ctx.sf, targets, !expand);
+    },
+    [ctx.taskId, ctx.sf, ids],
+  );
+
+  const prevTrajectory = useRef(isTrajectory);
+  useEffect(() => {
+    if (prevTrajectory.current === isTrajectory) {
+      if (isTrajectory) applyDetailsFold(true);
+      return;
+    }
+    prevTrajectory.current = isTrajectory;
+    setDetailsExpanded(isTrajectory);
+    applyDetailsFold(isTrajectory);
+  }, [isTrajectory, applyDetailsFold]);
 
   const onToggleAllDetails = (event: React.MouseEvent) => {
     event.stopPropagation();
     const nextExpanded = !detailsExpanded;
     setDetailsExpanded(nextExpanded);
     if (folded && nextExpanded) setFolded(false);
-    const targets: { node: DocNode; initialCollapsed: boolean }[] = [];
-    for (const id of ids) {
-      const node = peekTspNode(ctx.taskId, ctx.sf, id);
-      if (!node || node.p["collapsible"] !== true) continue;
-      const role = node.p["role"];
-      const isThinking = typeof role === "string" && role.startsWith("omp.thinking");
-      const headId = typeof node.p["head"] === "string" ? node.p["head"] : null;
-      const headNode = headId !== null ? peekTspNode(ctx.taskId, ctx.sf, headId) : null;
-      const thoughtDone = isThinking && headNode?.k === "text";
-      const initialCollapsed = node.p["collapsed"] === true || thoughtDone;
-      targets.push({ node, initialCollapsed });
-    }
-    setNodesFolded(ctx.taskId, ctx.sf, targets, !nextExpanded);
+    applyDetailsFold(nextExpanded);
   };
 
   useEffect(() => {
-    if (folded || !stickRef.current) return;
+    if (effectiveFolded || isTrajectory || !stickRef.current) return;
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [folded, ids.length]);
+  }, [effectiveFolded, isTrajectory, ids.length]);
 
   return (
-    <div className="tsp-process-group" data-layout={layout} data-testid="tsp-process-group">
+    <div
+      className="tsp-process-group"
+      data-layout={layout}
+      data-trajectory={isTrajectory ? "" : undefined}
+      data-testid="tsp-process-group"
+    >
       <div className="tsp-process-head-row">
         <button
           type="button"
           className="tsp-process-summary"
           data-running={running || undefined}
-          aria-expanded={!folded}
-          onClick={() => setFolded((f) => !f)}
+          aria-expanded={!effectiveFolded}
+          onClick={() => {
+            if (!isTrajectory) setFolded((f) => !f);
+          }}
           data-testid="tsp-process-summary"
         >
           <span className="tsp-process-summary-text">{label}</span>
-          {folded && activitiesText !== "" && (
+          {effectiveFolded && activitiesText !== "" && (
             <>
               <span className="tsp-process-summary-sep" aria-hidden="true">
                 ·
@@ -1217,22 +1250,30 @@ function ProcessGroup({
               </span>
             </>
           )}
-          <span className="tsp-process-summary-chev" aria-hidden="true">
-            <ChevronDown />
-          </span>
+          {!isTrajectory && (
+            <span className="tsp-process-summary-chev" aria-hidden="true">
+              <ChevronDown />
+            </span>
+          )}
         </button>
-        {!folded && (
+        {!effectiveFolded && (
           <div className="tsp-process-controls">
-            {hasExploreRuns && (
+            {hasExploreRuns && !isTrajectory && (
               <button
                 type="button"
                 className="tsp-process-ctrl-btn"
-                aria-pressed={foldExplore}
+                aria-pressed={effectiveFoldExplore}
                 onClick={() => setFoldExplore((v) => !v)}
                 title={zh ? "将连续的读取与搜索步骤聚合成单行摘要" : "Fold consecutive read/search steps"}
                 data-testid="tsp-process-fold-explore"
               >
-                {zh ? (foldExplore ? "展开读取" : "聚合读取") : foldExplore ? "Unfold reads" : "Fold reads"}
+                {zh
+                  ? effectiveFoldExplore
+                    ? "展开读取"
+                    : "聚合读取"
+                  : effectiveFoldExplore
+                    ? "Unfold reads"
+                    : "Fold reads"}
               </button>
             )}
             <button
@@ -1248,11 +1289,12 @@ function ProcessGroup({
           </div>
         )}
       </div>
-      {!folded && (
+      {!effectiveFolded && (
         <div
           ref={bodyRef}
           className="tsp-process-group-body"
           data-layout={layout}
+          data-trajectory={isTrajectory ? "" : undefined}
           onScroll={(event) => {
             const el = event.currentTarget;
             stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;

@@ -49,7 +49,7 @@ import {
 import type { RowHandlers } from "./TaskRow.tsx";
 import { useHistorySessions } from "./use-history-sessions.ts";
 import { useSidebarMenus } from "./use-sidebar-menus.tsx";
-import { clearTaskUnread, markTasksUnread, usePinnedIds, useUnreadTaskIds } from "./sidebar-prefs-store.ts";
+import { usePinnedIds, useUnreadTaskIds } from "./sidebar-prefs-store.ts";
 import "./sidebar.css";
 
 export function Sidebar() {
@@ -67,31 +67,6 @@ export function Sidebar() {
   const defaultLabel = t("empty.defaultFolder");
   const pinnedIds = usePinnedIds();
   const unreadTaskIds = useUnreadTaskIds();
-
-  // 追踪后台任务完成并标记未读（对齐 pi-agent-desktop-more SessionSidebar）：非当前选中任务从 running 正常结束时亮起未读点，选中即清除。
-  const prevRunningRef = useRef<Set<TaskId>>(new Set());
-  useEffect(() => {
-    const nowRunning = new Set<TaskId>();
-    const completedInBg: TaskId[] = [];
-    for (const task of tasksState.list) {
-      if (task.status === "running" || task.status === "starting") {
-        nowRunning.add(task.id);
-      } else if (
-        prevRunningRef.current.has(task.id) &&
-        task.id !== selectedTaskId &&
-        task.status === "idle" &&
-        task.lastTurn?.status === "completed"
-      ) {
-        completedInBg.push(task.id);
-      }
-    }
-    prevRunningRef.current = nowRunning;
-    if (completedInBg.length > 0) markTasksUnread(completedInBg);
-  }, [tasksState.list, selectedTaskId]);
-
-  useEffect(() => {
-    if (selectedTaskId !== null) clearTaskUnread(selectedTaskId);
-  }, [selectedTaskId]);
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
   const [limits, setLimits] = useState<Record<string, number>>({});
   const [tabStop, setTabStop] = useState("");

@@ -45,8 +45,10 @@ import { GATE_ACTION_APPROVE, GATE_ACTION_DETAILS, TSP_APPROVAL_DIALOG_ID } from
 import { PathLabel } from "../empty/ProjectLabel.tsx";
 import { Button } from "../../ui/controls.tsx";
 import { useShellValue } from "../../app/shell-store.ts";
+import { AttachButton } from "./AttachButton.tsx";
 import { ClawdMascot } from "./ClawdMascot.tsx";
 import { EnhancePromptButton } from "./EnhancePromptButton.tsx";
+import { SessionTelemetry } from "./SessionTelemetry.tsx";
 
 export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDraft?: boolean }) {
   const t = useT();
@@ -396,7 +398,7 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
         onDrop={attach.onDrop}
         onMouseDown={(event) => keepFieldFocus(event, fieldRef.current)}
       >
-        <ClawdMascot status={task.status} />
+        <ClawdMascot status={task.status} sessionUsage={task.sessionUsage} />
         <SlashMenu
           id="slash-menu"
           open={slashOpen}
@@ -478,6 +480,12 @@ export function Composer({ taskId, fromDraft = false }: { taskId: TaskId; fromDr
           <ShellTag taskId={taskId} />
           <span className="composer-spacer" />
           {tooOld && <span className="composer-note">{t("composer.versionTooOld")}</span>}
+          <SessionTelemetry usage={task.sessionUsage} />
+          <AttachButton
+            addFiles={attach.addFiles}
+            acceptsImages={shownModel?.acceptsImages}
+            disabled={tooOld === true || worktreeGone}
+          />
           <EnhancePromptButton
             draftKey={taskId}
             text={draft.text}

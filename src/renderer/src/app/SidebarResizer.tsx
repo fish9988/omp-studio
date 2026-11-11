@@ -8,8 +8,10 @@ const keyboardStep = 16;
 export function SidebarResizer({ width, column }: { width: number; column: RefObject<HTMLElement | null> }) {
   const drag = useRef<{ startX: number; startWidth: number } | null>(null);
 
-  /** 拖动中的宽度直接写到 DOM；取消拖动时用它还原成已提交的宽度。 */
+  /** 拖动中的宽度直接写到 DOM（同步写入 #app 与侧栏列，让顶栏左段与侧栏分割线始终共线）；取消拖动时用它还原成已提交的宽度。 */
   const show = (handle: HTMLElement, next: number) => {
+    const root = column.current?.closest<HTMLElement>("#app");
+    root?.style.setProperty("--sidebar-current", `${next}px`);
     column.current?.style.setProperty("--sidebar-current", `${next}px`);
     handle.setAttribute("aria-valuenow", String(next));
   };

@@ -88,6 +88,7 @@ function ContextButton({
       <button
         type="button"
         className="usage-context"
+        data-warn={(context.percent >= 70 && context.percent < 90) || undefined}
         data-high={context.percent >= 90 || undefined}
         data-testid="context-meter"
         aria-label={label}

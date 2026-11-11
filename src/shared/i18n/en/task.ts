@@ -30,6 +30,8 @@ export const task = {
   exportHtml: "Export as HTML…",
   pin: "Pin session",
   unpin: "Unpin session",
+  markUnread: "Mark as unread",
+  markRead: "Mark as read",
   copyRef: "Copy reference (#ID)",
   copiedId: "Copied session ID: {id}",
   copiedRef: "Copied #{id} — paste into another chat to reference this session",

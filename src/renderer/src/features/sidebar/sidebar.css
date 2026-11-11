@@ -370,6 +370,43 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 运行中任务标题流光扫过（复刻 DSH rail-shell sb-title-shimmer，3s 离散帧驱动、跟随 --play-state） */
+.sb-row[data-status="running"] .sb-row-title {
+  background: linear-gradient(
+    105deg,
+    currentColor 0%,
+    currentColor 34%,
+    var(--accent) 50%,
+    currentColor 66%,
+    currentColor 100%
+  );
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sb-title-shimmer 3000ms steps(60, end) infinite;
+  animation-play-state: var(--play-state);
+}
+@keyframes sb-title-shimmer {
+  from {
+    background-position: 140% 50%;
+  }
+  to {
+    background-position: -100% 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-row[data-status="running"] .sb-row-title {
+    background: none;
+    color: inherit;
+    animation: none;
+  }
+}
+:root[data-motion="reduced"] .sb-row[data-status="running"] .sb-row-title {
+  background: none;
+  color: inherit;
+  animation: none;
+}
 .sb-row-pin {
   flex: none;
   display: inline-flex;
@@ -403,6 +440,8 @@
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--st-running);
+  animation: sb-halo var(--dur-breathe) var(--tick-breathe) infinite;
+  animation-play-state: var(--play-state);
 }
 /* 时间一列：所有行的右边对齐；任务行 hover 时 ⋯ 盖在这一格上（最小宽 = ⋯ 的宽），所以任务行不再另外让位。
    无衬线 + 等宽数字（2026-10-29：原来等宽字体，"40 分钟"里中文落到回退字体、数字和中文之间空一大格，英文 Just now 又宽得挤掉标题） */

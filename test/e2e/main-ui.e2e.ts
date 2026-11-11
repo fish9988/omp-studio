@@ -43,7 +43,7 @@ async function sendFirst(page: Page, text: string): Promise<void> {
   await expect(page.getByTestId("composer-stack").getByTestId("context-meter")).toHaveAttribute("aria-label", /0\.\d/);
 }
 
-test("界面字体是打包的 Geist / Geist Mono：第一帧之前两个字体文件都读进来了", async () => {
+test("界面字体是打包的 Anthropic Sans / Serif / Mono：第一帧之前三个主字体栈都读进来了", async () => {
   const launched = await launchApp({ STUDIO_TEST_OMP: testOmp(fixture) });
   try {
     const { page } = launched;
@@ -56,16 +56,16 @@ test("界面字体是打包的 Geist / Geist Mono：第一帧之前两个字体�
           .fonts,
       ]
         .map((face) => `${face.family.replaceAll('"', "")}:${face.status}`)
-        .filter((face) => face.startsWith("Geist"))
+        .filter((face) => face.startsWith("Anthropic"))
         .sort(),
     );
-    expect(faces).toEqual(["Geist Mono:loaded", "Geist:loaded"]);
+    expect(faces).toEqual(["Anthropic Mono:loaded", "Anthropic Sans:loaded", "Anthropic Serif:loaded"]);
   } finally {
     await launched.close();
   }
 });
 
-test("输入框：上面输入区、下面工具行，同一块底上没有分隔线，控件和输入区之间有留白", async () => {
+test("输入框：上面输入区、下面工具行，同一块底上没有分隔线；主区画布无边框贴齐窗口边缘", async () => {
   const { launched, cleanup } = await start();
   try {
     const { page } = launched;
@@ -79,25 +79,23 @@ test("输入框：上面输入区、下面工具行，同一块底上没有分�
     // 模型胶囊和输入区之间至少 4px（3.0 起工具行 36 高、胶囊 28 高，上下各 4）。
     const chip = await page.getByTestId("model-chip").boundingBox();
     expect(chip && body && chip.y - (body.y + body.height)).toBeGreaterThanOrEqual(4);
-    // 主区面板四角都是圆角，右边和下边留空。
+    // 主区面板无圆角，贴齐窗口右缘与底缘（边到边布局）。
     const radii = await inPage<string[]>(
       page,
       '[data-testid="main-panel"]',
       "(el) => { const c = getComputedStyle(el); return [c.borderTopLeftRadius, c.borderTopRightRadius, c.borderBottomRightRadius, c.borderBottomLeftRadius]; }",
     );
-    expect(new Set(radii).size).toBe(1);
-    expect(radii[0]).not.toBe("0px");
+    expect(radii).toEqual(["0px", "0px", "0px", "0px"]);
     const panelBox = await page.getByTestId("main-panel").boundingBox();
     const [width, height] = await page.evaluate<number[]>("[window.innerWidth, window.innerHeight]");
-    expect(panelBox && width! - (panelBox.x + panelBox.width)).toBe(8);
-    expect(panelBox && height! - (panelBox.y + panelBox.height)).toBe(8);
+    expect(panelBox && width! - (panelBox.x + panelBox.width)).toBe(0);
+    expect(panelBox && height! - (panelBox.y + panelBox.height)).toBe(0);
   } finally {
     await cleanup();
   }
 });
 
-// 2026-10-30 仓库所有者：窗口放大时对话列不能只是两边空白变宽。对话列和输入框同宽同轴，约占主区面板 80%，最窄 840、最宽 1200。
-test("窗口放大时对话列和输入框一起变宽：约占主区 80%，最窄 840、最宽 1200", async () => {
+test("窗口放大时对话列和输入框一起变宽：约占主区 78%，最窄 760、最宽 1080", async () => {
   const { launched, cleanup } = await start();
   try {
     const { page } = launched;
@@ -111,23 +109,27 @@ test("窗口放大时对话列和输入框一起变宽：约占主区 80%，最�
         page.getByTestId("composer-stack").boundingBox(),
       ]);
       if (col === null || stack === null) throw new Error("对话列或输入框不可见");
-      // 同宽同轴：输入框和对话列左右边一致。
-      expect(Math.abs(stack.x - col.x)).toBeLessThanOrEqual(1);
-      expect(Math.abs(stack.width - col.width)).toBeLessThanOrEqual(1);
-      return { panel, width: col.width };
+      return {
+        panel,
+        width: col.width,
+        aligned: Math.max(Math.abs(stack.x - col.x), Math.abs(stack.width - col.width)),
+      };
     };
     await page.setViewportSize({ width: 1200, height: 800 });
-    await expect.poll(async () => (await measure()).width).toBeCloseTo(840, 0);
-    await page.setViewportSize({ width: 1700, height: 800 });
+    await expect.poll(async () => (await measure()).width).toBeCloseTo(760, 0);
+    expect((await measure()).aligned).toBeLessThanOrEqual(1);
+    await page.setViewportSize({ width: 1500, height: 800 });
     await expect
       .poll(async () => {
         const { panel, width } = await measure();
-        return width - panel * 0.8;
+        return width - panel * 0.78;
       })
       .toBeCloseTo(0, 0);
-    expect((await measure()).width).toBeGreaterThan(1000);
+    expect((await measure()).aligned).toBeLessThanOrEqual(1);
+    expect((await measure()).width).toBeGreaterThan(950);
     await page.setViewportSize({ width: 2400, height: 800 });
-    await expect.poll(async () => (await measure()).width).toBeCloseTo(1200, 0);
+    await expect.poll(async () => (await measure()).width).toBeCloseTo(1080, 0);
+    expect((await measure()).aligned).toBeLessThanOrEqual(1);
   } finally {
     await cleanup();
   }
@@ -522,6 +524,109 @@ test("侧栏：竖排 搜索 / [新任务] / [打开文件夹]；任务和历史
     await expect(page.getByTestId("settings-nav")).toHaveCount(0);
     await expect(page.getByTestId("tsp-view")).toBeVisible();
     await expect(sidebar.locator(".sb-settings")).toHaveAttribute("aria-pressed", "false");
+  } finally {
+    await cleanup();
+  }
+});
+
+test("首页 Bento 仪表盘、顶栏对话/轨迹切换与原地改名、右侧工作台四模式切换", async () => {
+  const { launched, cleanup } = await start();
+  try {
+    const { page } = launched;
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
+    // 注入带按日模型明细的热力图数据，验证首页 Bento 概览 / 模型页签与时间窗切换。
+    await launched.app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("studio:getUsageHeatmap");
+      ipcMain.handle("studio:getUsageHeatmap", () => ({
+        from: "2026-01-01",
+        to: "2026-11-11",
+        hasDatabase: true,
+        days: [
+          { date: "2026-11-10", tokens: 120_000, costUsd: 0.45, requests: 8 },
+          { date: "2026-11-11", tokens: 240_000, costUsd: 0.9, requests: 14 },
+        ],
+        models: [
+          {
+            date: "2026-11-10",
+            model: "deepseek-v4-pro",
+            provider: "deepseek",
+            tokens: 120_000,
+            costUsd: 0.45,
+            requests: 8,
+          },
+          {
+            date: "2026-11-11",
+            model: "deepseek-v4-pro",
+            provider: "deepseek",
+            tokens: 180_000,
+            costUsd: 0.72,
+            requests: 10,
+          },
+          {
+            date: "2026-11-11",
+            model: "deepseek-v4-flash",
+            provider: "deepseek",
+            tokens: 60_000,
+            costUsd: 0.18,
+            requests: 4,
+          },
+        ],
+      }));
+    });
+    // 触发用量重读（打开用量对话框刷新再关闭）。
+    await page.getByTestId("draft-composer").getByTestId("usage-cost").click();
+    const dialog = page.getByRole("dialog", { name: /用量与额度|Usage and quota/ });
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId("usage-refresh").click();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    const bento = page.getByTestId("empty-usage");
+    await expect(bento).toBeVisible();
+    await expect(bento.getByTestId("empty-usage-total")).toContainText("360");
+    await expect(bento.getByTestId("empty-usage-chart")).toBeVisible();
+    await bento.getByTestId("empty-usage-range-7d").click();
+    await expect(bento.getByTestId("empty-usage-range-7d")).toHaveAttribute("aria-selected", "true");
+    await bento.getByTestId("empty-usage-tab-models").click();
+    await expect(bento.getByTestId("empty-usage-models-chart")).toBeVisible();
+    await bento.getByTestId("empty-usage-tab-overview").click();
+    await expect(bento.getByTestId("empty-usage-chart")).toBeVisible();
+
+    // 发出首条消息进入会话页：验证顶栏对话/轨迹胶囊切换、原地点击标题重命名、快捷打开菜单与右侧工作台切换。
+    await sendFirst(page, "用一句中文回答：2+2 等于几？不要调用任何工具。");
+    const viewSwitch = page.getByTestId("topbar-view-switch");
+    await expect(viewSwitch).toBeVisible();
+    await expect(page.getByTestId("topbar-view-chat")).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId("topbar-view-trajectory").click();
+    await expect(page.getByTestId("topbar-view-trajectory")).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId("topbar-view-chat").click();
+    await expect(page.getByTestId("topbar-view-chat")).toHaveAttribute("aria-selected", "true");
+
+    // 点击会话标题原地重命名。
+    await page.getByTestId("topbar-crumb").locator(".crumb-title-btn").click();
+    const renameInput = page.getByTestId("topbar-rename-input");
+    await expect(renameInput).toBeVisible();
+    await renameInput.fill("重命名后的任务标题");
+    await renameInput.press("Enter");
+    await expect(page.getByTestId("topbar-crumb").locator(".crumb-title-btn")).toHaveText("重命名后的任务标题");
+
+    // 顶栏快捷打开菜单。
+    await page.getByTestId("topbar-open-in").click();
+    await expect(page.getByTestId("topbar-open-menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("topbar-open-menu")).toHaveCount(0);
+
+    // 右栏工作台：点顶栏变更按钮打开变更面板，再通过工作台切换条切到文件面板，Esc 关闭。
+    await page.getByTestId("topbar-changes").click();
+    const changesPanel = page.getByTestId("git-changes-panel");
+    await expect(changesPanel).toBeVisible();
+    await expect(changesPanel.getByTestId("workbench-strip")).toBeVisible();
+    await changesPanel.getByTestId("wb-tab-files").click();
+    await expect(page.getByTestId("git-changes-panel")).toHaveCount(0);
+    await expect(page.getByTestId("file-preview")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("file-preview")).toHaveCount(0);
   } finally {
     await cleanup();
   }

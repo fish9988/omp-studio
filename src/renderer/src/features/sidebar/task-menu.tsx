@@ -10,7 +10,7 @@ import { exportConversationReporting } from "../composer/export-html.ts";
 import { openSessionInfo, openShareDialog } from "../session-info/session-info-store.ts";
 import { archiveWithUndo } from "./archive-store.ts";
 import { ArchiveIcon, ExportIcon, ProcessIcon } from "./icons.tsx";
-import { isItemPinned, toggleItemPinned } from "./sidebar-prefs-store.ts";
+import { isItemPinned, isTaskUnread, toggleItemPinned, toggleTaskUnread } from "./sidebar-prefs-store.ts";
 export async function attempt(t: TFunction, action: () => Promise<void>): Promise<void> {
   try {
     await action();
@@ -70,6 +70,7 @@ export function buildTaskMenu(options: {
 }): MenuEntry[] {
   const { t, taskId } = options;
   const pinned = isItemPinned(taskId);
+  const unread = isTaskUnread(taskId);
   return [
     {
       id: "pin",
@@ -77,6 +78,25 @@ export function buildTaskMenu(options: {
       icon: <Pin />,
       onSelect: () => {
         toggleItemPinned(taskId);
+      },
+    },
+    {
+      id: "unread",
+      label: t(unread ? "task.markRead" : "task.markUnread"),
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle
+            cx="8"
+            cy="8"
+            r="3.5"
+            fill={unread ? "none" : "currentColor"}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      ),
+      onSelect: () => {
+        toggleTaskUnread(taskId);
       },
     },
     { id: "rename", label: t("task.rename"), icon: <Pencil />, shortcut: "F2", onSelect: options.onRename },

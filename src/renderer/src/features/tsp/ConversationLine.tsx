@@ -2,7 +2,7 @@
 // 视口里正在读的那一轮（最后一条顶边在视口上 1/3 以上的消息）的刻度加深、加长。少于 2 条消息不画。
 // 消息来自 TSP 文档（omp.user 卡片，shared/tsp/user-messages.ts），页面里按 `[data-id]` 找到卡片：每次消息列表变化后各找一次，
 // 元素换掉（重挂载）了再找；滚动时按顶边二分（卡片在页面里按发送顺序排，顶边递增），每帧只读 O(log n) 个矩形。
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { TaskId } from "../../../../shared/ipc.ts";
 import {
   sameUserMessages,
@@ -135,6 +135,40 @@ export function ConversationLine({ taskId, scroller }: { taskId: TaskId; scrolle
     [],
   );
 
+  const jump = useCallback(
+    (id: string) => {
+      const el = scroller.current;
+      const target = el === null ? null : card(el, id);
+      if (el === null || target === null) return;
+      const place = () => {
+        const delta = target.getBoundingClientRect().top - el.getBoundingClientRect().top - LANDING_GAP;
+        if (Math.abs(delta) > 0.5) el.scrollTop += delta;
+      };
+      stopLanding.current?.();
+      place();
+      stopLanding.current = holdLanding(el, place);
+      flashLanding(target);
+    },
+    [scroller],
+  );
+
+  // Alt+↑ / Alt+↓ 在当前会话的用户消息刻度之间快速跳转
+  useEffect(() => {
+    if (messages.length < 2) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (event.target instanceof Element && event.target.closest('[aria-modal="true"]') !== null) return;
+      const nextIdx = event.key === "ArrowUp" ? Math.max(0, current - 1) : Math.min(messages.length - 1, current + 1);
+      const targetMsg = messages[nextIdx];
+      if (!targetMsg) return;
+      event.preventDefault();
+      jump(targetMsg.id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, jump, messages]);
+
   if (messages.length < 2) return null;
 
   const onEnter = () => {
@@ -149,20 +183,6 @@ export function ConversationLine({ taskId, scroller }: { taskId: TaskId; scrolle
       closeTimer.current = undefined;
       setOpen(false);
     }, 140);
-  };
-
-  const jump = (id: string) => {
-    const el = scroller.current;
-    const target = el === null ? null : card(el, id);
-    if (el === null || target === null) return;
-    const place = () => {
-      const delta = target.getBoundingClientRect().top - el.getBoundingClientRect().top - LANDING_GAP;
-      if (Math.abs(delta) > 0.5) el.scrollTop += delta;
-    };
-    stopLanding.current?.();
-    place();
-    stopLanding.current = holdLanding(el, place);
-    flashLanding(target);
   };
 
   return (

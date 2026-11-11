@@ -22,6 +22,7 @@ import { DropOverlay, EmptyState, startDraft } from "../features/empty/index.ts"
 import { toggleFilesPanel, usePreviewPanel } from "../features/file-preview/index.ts";
 import { closeAgentsPanel, useAgentsPanel } from "../features/agents/index.ts";
 import { closeBrowserPanel, openBrowserPanel, toggleBrowserPanel, useBrowserPanel } from "../features/browser/index.ts";
+import { closeChangesPanel, useChangesPanel } from "../features/workbench/index.ts";
 import {
   TerminalPanel,
   toggleTerminalFocus,
@@ -34,6 +35,7 @@ import {
   BrowserPanel,
   CommandPalette,
   FilePreviewPane,
+  GitChangesPanel,
   GitDialogHost,
   OmpSetupView,
   preloadFrequentViews,
@@ -43,7 +45,7 @@ import {
   SettingsView,
 } from "./lazy-views.tsx";
 import { onStudioCommand } from "../features/palette/studio-command.ts";
-import { jumpToWaitingTask, Sidebar } from "../features/sidebar/index.ts";
+import { jumpToWaitingTask, Sidebar, useUnreadTaskSync } from "../features/sidebar/index.ts";
 import { addProjectAsDraft } from "../features/sidebar/sidebar-actions.ts";
 import { useLocale, useT } from "../i18n/use-t.ts";
 import { openReview } from "../store/review-store.ts";
@@ -139,16 +141,22 @@ export function App() {
   const panel = usePreviewPanel();
   const agentsPanel = useAgentsPanel();
   const browserPanel = useBrowserPanel();
-  // 子代理、浏览器、文件三个面板共用右栏，同时只开一个：文件面板一打开就收起另外两个，子代理面板打开时收起浏览器
-  // （openAgentsPanel 关文件面板，openBrowserPanel 关另外两个）。
+  const changesPanel = useChangesPanel();
+  // 文件、变更、子代理、浏览器四个面板共用右栏，同时只开一个。
   useEffect(() => {
     if (panel === null) return;
+    closeChangesPanel(false);
     closeAgentsPanel(false);
     closeBrowserPanel(false);
   }, [panel]);
   useEffect(() => {
-    if (agentsPanel !== null) closeBrowserPanel(false);
+    if (agentsPanel === null) return;
+    closeChangesPanel(false);
+    closeBrowserPanel(false);
   }, [agentsPanel]);
+  useEffect(() => {
+    if (browserPanel !== null) closeChangesPanel(false);
+  }, [browserPanel]);
   // omp 连上了当前任务的浏览器（AI 开始用它）：打开面板，不抢焦点。
   useEffect(
     () =>
@@ -269,6 +277,43 @@ export function App() {
 
   const sidebarShown = narrow ? drawerOpen : !sidebarCollapsed;
   const drawerScrim = usePresence(narrow && drawerOpen, "fade");
+  useUnreadTaskSync();
+
+  // 收起侧栏时靠左缘悬停呼出悬浮侧栏抽屉（复刻 DSH rail-shell peek 浮层卡片，不改变主画布宽度）。
+  const [sidebarPeek, setSidebarPeek] = useState(false);
+  const peekOpenTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const peekCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    clearTimeout(peekOpenTimer.current);
+    clearTimeout(peekCloseTimer.current);
+    setSidebarPeek(false);
+  }, [sidebarShown, narrow, taskId, view]);
+  useEffect(
+    () => () => {
+      clearTimeout(peekOpenTimer.current);
+      clearTimeout(peekCloseTimer.current);
+    },
+    [],
+  );
+  const onPeekZoneEnter = () => {
+    if (narrow || sidebarShown) return;
+    clearTimeout(peekCloseTimer.current);
+    clearTimeout(peekOpenTimer.current);
+    peekOpenTimer.current = setTimeout(() => setSidebarPeek(true), 120);
+  };
+  const onPeekCardEnter = () => {
+    clearTimeout(peekCloseTimer.current);
+  };
+  const onPeekLeave = () => {
+    clearTimeout(peekOpenTimer.current);
+    clearTimeout(peekCloseTimer.current);
+    peekCloseTimer.current = setTimeout(() => {
+      // 侧栏里的右键/更多菜单开着时不收起浮层
+      if (document.querySelector('[role="menu"]') !== null) return;
+      setSidebarPeek(false);
+    }, 180);
+  };
+  const peekActive = !narrow && !sidebarShown && sidebarPeek;
 
   // 选了任务或变宽之后，抽屉自动收起。
   useEffect(() => setDrawerOpen(false), [taskId, narrow]);
@@ -430,6 +475,7 @@ export function App() {
       data-locale={appInfo?.locale}
       data-sidebar={sidebarShown ? "shown" : "hidden"}
       data-drawer={narrow}
+      style={{ "--sidebar-current": `${sidebarWidth}px` } as CSSProperties}
     >
       <TopBar sidebarShown={sidebarShown} onToggleSidebar={toggleSidebar} />
       <div className="body">
@@ -441,12 +487,23 @@ export function App() {
             onPointerDown={() => setDrawerOpen(false)}
           />
         )}
+        {!narrow && !sidebarShown && (
+          <div
+            className="sidebar-peek-zone"
+            aria-hidden="true"
+            onPointerEnter={onPeekZoneEnter}
+            onPointerLeave={onPeekLeave}
+          />
+        )}
         <div
           ref={sidebarColumn}
           className="sidebar-column"
           data-testid="sidebar-column"
-          inert={!sidebarShown}
+          data-peek={peekActive ? "true" : undefined}
+          inert={!sidebarShown && !peekActive}
           style={{ "--sidebar-current": `${sidebarWidth}px` } as CSSProperties}
+          onPointerEnter={peekActive ? onPeekCardEnter : undefined}
+          onPointerLeave={peekActive ? onPeekLeave : undefined}
         >
           {/* 进设置时侧栏位置换成设置导航；窄窗口的抽屉里仍是会话列表，设置导航改成内容顶上的下拉 */}
           {view === "settings" && !narrow ? <SettingsNav /> : <Sidebar />}
@@ -491,16 +548,17 @@ export function App() {
             </>
           )}
         </main>
-        {/* 右栏三个面板是兄弟，key 都要带前缀：同一个任务 id 当 key 时，从子代理面板换到文件面板的那一帧两者都在，React 会把文件面板画成两份。 */}
-        {view === "conversation" && panel?.key === terminalKey && (
-          <FilePreviewPane key={`files:${panel.key}`} panelKey={panel.key} page={panel.page} path={panel.path} />
-        )}
-        {view === "conversation" && taskId !== null && agentsPanel?.taskId === taskId && (
-          <AgentsPanel key={`agents:${taskId}`} taskId={taskId} selected={agentsPanel.selected} />
-        )}
-        {view === "conversation" && taskId !== null && browserPanel === taskId && (
-          <BrowserPanel key={`browser:${taskId}`} taskId={taskId} />
-        )}
+        {/* 右栏四个工作台面板互斥，key 均带前缀，切换时绝不会出现同一帧双栏并排。 */}
+        {view === "conversation" &&
+          (panel?.key === terminalKey ? (
+            <FilePreviewPane key={`files:${panel.key}`} panelKey={panel.key} page={panel.page} path={panel.path} />
+          ) : taskId !== null && agentsPanel?.taskId === taskId ? (
+            <AgentsPanel key={`agents:${taskId}`} taskId={taskId} selected={agentsPanel.selected} />
+          ) : taskId !== null && browserPanel === taskId ? (
+            <BrowserPanel key={`browser:${taskId}`} taskId={taskId} />
+          ) : taskId !== null && changesPanel === taskId ? (
+            <GitChangesPanel key={`changes:${taskId}`} taskId={taskId} />
+          ) : null)}
       </div>
       {aboutKey !== null && <AboutDialog key={aboutKey} onExited={() => about.closed(aboutKey)} />}
       <DropOverlay />

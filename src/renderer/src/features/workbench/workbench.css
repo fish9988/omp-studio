@@ -1,0 +1,352 @@
+/* 右侧统一工作台（文件 | 变更 | 子代理 | 浏览器切换条 + 行内工作区变更检视器）。全部类名以 .wb- 开头，只用 tokens.css 变量。 */
+
+/* ───────── 顶部四模式切换条 ───────── */
+
+.wb-strip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-0-5);
+  height: 32px;
+  padding: var(--space-0-5) var(--space-2);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wb-strip-btn {
+  display: inline-flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-1-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.wb-strip-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.wb-strip-btn[data-active] {
+  background: var(--bg-app);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+.wb-strip-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.wb-strip-btn svg {
+  flex: none;
+}
+
+.wb-strip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ───────── 变更面板头与空状态 ───────── */
+
+.wb-changes-head {
+  gap: var(--space-1-5);
+}
+
+.wb-changes-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-changes-totals {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-stat-add {
+  color: var(--diff-add-fg);
+}
+
+.wb-stat-del {
+  color: var(--diff-del-fg);
+}
+
+.wb-changes-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wb-changes-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+/* ───────── 上半部：分组文件列表 ───────── */
+
+.wb-file-list {
+  flex: 0 1 38%;
+  min-height: 92px;
+  padding: var(--space-1-5) var(--space-2);
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wb-group + .wb-group {
+  margin-top: var(--space-2);
+}
+
+.wb-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  padding: 0 var(--space-1-5);
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+}
+
+.wb-group-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 100%;
+  height: var(--row-tool);
+  padding: 0 var(--space-1-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.wb-file-row:hover {
+  background: var(--bg-hover);
+}
+
+.wb-file-row[aria-current="true"] {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+.wb-file-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.wb-kind {
+  flex: none;
+  width: var(--space-4);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-align: center;
+}
+
+.wb-kind[data-kind="added"],
+.wb-kind[data-kind="untracked"] {
+  color: var(--diff-add-fg);
+}
+
+.wb-kind[data-kind="deleted"] {
+  color: var(--diff-del-fg);
+}
+
+.wb-kind[data-kind="conflicted"] {
+  color: var(--st-waiting-text);
+}
+
+.wb-file-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.wb-file-dir {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  text-overflow: ellipsis;
+}
+
+.wb-file-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-file-counts {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────── 下半部：行内统一 diff ───────── */
+
+.wb-diff-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wb-diff-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-md);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wb-diff-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-diff-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2) 0 var(--space-4);
+  overflow: auto;
+}
+
+.wb-diff-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+.wb-hunk {
+  margin: 0 var(--space-2) var(--space-2-5);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.wb-hunk-head {
+  padding: var(--space-1) var(--space-2-5);
+  background: var(--bg-sunken);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-hunk-lines {
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code-sm);
+  line-height: var(--lh-code-sm);
+  font-variant-ligatures: none;
+  tab-size: 2;
+}
+
+.wb-diff-row {
+  --wb-bar: transparent;
+  display: grid;
+  grid-template-columns: 34px 34px 18px minmax(0, 1fr);
+  min-width: max-content;
+  box-shadow: inset 2px 0 0 var(--wb-bar);
+}
+
+.wb-diff-row[data-kind="add"] {
+  --wb-bar: var(--diff-add-fg);
+  background-color: var(--diff-add-bg);
+}
+
+.wb-diff-row[data-kind="del"] {
+  --wb-bar: var(--diff-del-fg);
+  background-color: var(--diff-del-bg);
+}
+
+.wb-line-no {
+  padding: 0 var(--space-1);
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
+}
+
+.wb-line-sign {
+  color: var(--text-3);
+  text-align: center;
+  user-select: none;
+}
+
+.wb-diff-row[data-kind="add"] .wb-line-sign {
+  color: var(--diff-add-fg);
+}
+
+.wb-diff-row[data-kind="del"] .wb-line-sign {
+  color: var(--diff-del-fg);
+}
+
+.wb-line-code {
+  padding-right: var(--space-3);
+  white-space: pre;
+}

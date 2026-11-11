@@ -85,4 +85,13 @@ export const composer = {
   enhanceDone: "提示词已优化",
   enhanceUndo: "还原",
   enhanceUndoTip: "还原为优化前的原始草稿",
+  effortTitle: "思考强度",
+  effortFaster: "更快",
+  effortSmarter: "更强",
+  attachImage: "添加图片",
+  mascotCost: "花费",
+  mascotTokens: "Token",
+  telemetryTurns: "{n} 轮",
+  telemetryCache: "{p}% 缓存",
+  telemetryTip: "会话轮次与缓存命中率（点击查看用量）",
 } satisfies Record<string, MessageEntry>;

@@ -43,9 +43,9 @@ function glassOn(): boolean {
   return glassSupported && getSettings().glass;
 }
 
-/** 窗口底色：平时是网页当前主题的顶栏色（首帧前、拖大窗口时露出的那一块和顶栏一致）；毛玻璃时透明，否则盖住 Acrylic。 */
+/** 窗口底色：平时是网页当前主题的主区底色；毛玻璃时透明，否则盖住 Acrylic。 */
 function windowBackground(): string {
-  return glassOn() ? "#00000000" : pageThemeSpec().sidebar;
+  return glassOn() ? "#00000000" : pageThemeSpec().app;
 }
 
 /**
@@ -95,9 +95,9 @@ function pageThemeSpec(): ThemeSpec {
   return themes[resolveTheme(pageTheme, nativeTheme.shouldUseDarkColors)];
 }
 
-/** dim = 遮罩的不透明度（0 没有遮罩，1 全显）：顶栏色、符号色上叠 dim 倍的 --bg-scrim。 */
+/** dim = 遮罩的不透明度（0 没有遮罩，1 全显）：右侧顶栏色（--bg-app）、符号色上叠 dim 倍的 --bg-scrim。 */
 function overlayColors(theme: ThemeSpec, dim: number): OverlayColors {
-  const color = parseHex(theme.sidebar);
+  const color = parseHex(theme.app);
   const symbolColor = parseHex(theme.text);
   const scrim = /^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/.exec(theme.scrim);
   if (scrim === null) throw new Error(`theme scrim is not rgba(): ${theme.scrim}`);

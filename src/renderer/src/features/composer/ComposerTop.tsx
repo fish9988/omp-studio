@@ -33,7 +33,7 @@ import {
   InterruptedNote,
   RetryActivity,
 } from "./ComposerNotes.tsx";
-import { PiWriteMark } from "./PiWriteMark.tsx";
+import { WaitDots } from "./WaitDots.tsx";
 import { StatusPills } from "./StatusPills.tsx";
 import { TodoBoard } from "./TodoBoard.tsx";
 import { useTspJobs } from "./tsp-jobs-store.ts";
@@ -53,7 +53,17 @@ interface View {
   facts: ComposerFacts | null;
 }
 
-function StatusLine({ task, label, facts }: { task: TaskState; label: string | null; facts: ComposerFacts | null }) {
+function StatusLine({
+  task,
+  label,
+  facts,
+  agents,
+}: {
+  task: TaskState;
+  label: string | null;
+  facts: ComposerFacts | null;
+  agents: number;
+}) {
   const t = useT();
   const now = useNow(task.runStartedAt !== null, task.runStartedAt ?? 0);
   const waiting = task.status === "needs_you";
@@ -68,12 +78,13 @@ function StatusLine({ task, label, facts }: { task: TaskState; label: string | n
   // 取消：重试和压缩点 omp 自己的取消 / 停止（`interrupt` 动作），能取消的空闲 loader（交接、分支摘要…）发 Esc。
   const cancel: ActionTarget | "escape" | null =
     retry?.cancel ?? compaction?.stop ?? (loader?.cancellable === true ? "escape" : null);
+  const laneOverride = compaction !== null || agents > 0 ? "orbit" : task.status === "starting" ? "bounce" : undefined;
   return (
     <div className="run-main" data-testid="run-status-main" data-waiting={waiting || undefined}>
       {waiting ? (
         <span className="run-mark run-mark-waiting" aria-hidden="true" />
       ) : (
-        <PiWriteMark className="run-mark" />
+        <WaitDots className="run-mark" laneOverride={laneOverride} />
       )}
       {task.runStartedAt !== null && (
         <>
@@ -86,7 +97,7 @@ function StatusLine({ task, label, facts }: { task: TaskState; label: string | n
         </>
       )}
       {retry === null ? (
-        <span className="run-activity" data-testid="run-activity">
+        <span className="run-activity" data-testid="run-activity" data-shimmer={!waiting || undefined}>
           {text}
         </span>
       ) : (
@@ -113,7 +124,7 @@ function TopContent({ view }: { view: View }) {
       {hasTodo && hasPills && <div className="top-pills">{pills}</div>}
       {(busy || hasTodo || hasPills || interrupted || hasExt) && (
         <div className="run-status" data-testid="run-status">
-          {busy && <StatusLine task={task} label={label} facts={facts} />}
+          {busy && <StatusLine task={task} label={label} facts={facts} agents={agents} />}
           {interrupted && <InterruptedNote taskId={task.id} />}
           <ExtStatusTags statuses={task.extStatuses} />
           {hasTodo ? (

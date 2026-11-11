@@ -293,7 +293,8 @@ test("设置、侧栏折叠和窗口尺寸写入 userData，重启后恢复", as
       const width = await second.app.evaluate(
         ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getNormalBounds().width,
       );
-      expect(width).toBe(1100);
+      // Windows 非整数 DPI（如 150%）下无边框窗口 DIP ↔ 物理像素往返会有 ≤2px 取整误差（默认宽度为 1200）。
+      expect(Math.abs((width ?? 0) - 1100)).toBeLessThanOrEqual(2);
     } finally {
       await second.close();
     }

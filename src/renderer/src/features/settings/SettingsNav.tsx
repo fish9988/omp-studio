@@ -155,35 +155,3 @@ export function SettingsCompactNav() {
     </div>
   );
 }
-
-/** 统一设置中心顶部标签条（复刻 dsh-claude-style 的 ClaudeStyleSettingsTabStrip）：
- *  在设置内容顶部直接横向切换所有 9 个设置分区（通用、模型角色、Provider、集成与插件、工具、Context、Subagent、高级、关于）。 */
-export function SettingsTabStrip() {
-  const t = useT();
-  const page = useSettingsPage();
-  const query = useSettingsQuery();
-  const searching = query.trim() !== "";
-  return (
-    <div className="st-hub-bar" data-testid="settings-hub-bar">
-      <div role="tablist" aria-label={t("settings.sections")} className="st-hub-tabs">
-        {settingsPages.map((item) => {
-          const active = !searching && page === item;
-          return (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className="st-hub-tab"
-              data-active={active ? "" : undefined}
-              onClick={() => setSettingsPage(item)}
-              data-testid={`settings-hub-tab-${item}`}
-            >
-              {t(`settings.${item}`)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}

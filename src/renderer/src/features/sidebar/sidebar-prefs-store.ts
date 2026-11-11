@@ -1,7 +1,10 @@
 // 侧栏客户端偏好与活动状态（对齐 pi-agent-desktop-more 的 pinnedChats 与 unreadSessionIds）：
 // - pinnedIds：置顶的任务 ID 或历史会话 ID（持久化于 localStorage），在文件夹内与时间线下均置顶优先排序；
 // - unreadTaskIds：在后台运行完成、用户尚未点开查看的任务 ID，展示未读呼吸圆点与折叠文件夹未读计数，选中后自动清除。
+import { useEffect, useRef } from "react";
+import type { TaskId } from "../../../../shared/ipc.ts";
 import { createStore, useStoreValue } from "../../store/create-store.ts";
+import { useSelectedTaskId, useTasksState } from "../../store/index.ts";
 
 const PINNED_STORAGE_KEY = "omp-studio:pinned-ids";
 const UNREAD_STORAGE_KEY = "omp-studio:unread-tasks";
@@ -85,4 +88,51 @@ export function clearTaskUnread(id: string): void {
   next.delete(id);
   writeStoredSet(UNREAD_STORAGE_KEY, next);
   store.set({ ...store.get(), unreadTaskIds: next });
+}
+
+export function isTaskUnread(id: string): boolean {
+  return store.get().unreadTaskIds.has(id);
+}
+
+export function toggleTaskUnread(id: string): boolean {
+  const current = store.get().unreadTaskIds;
+  const next = new Set(current);
+  const nowUnread = !next.has(id);
+  if (nowUnread) next.add(id);
+  else next.delete(id);
+  writeStoredSet(UNREAD_STORAGE_KEY, next);
+  store.set({ ...store.get(), unreadTaskIds: next });
+  return nowUnread;
+}
+
+/** 挂在 App 根级（进入设置页或收起侧栏时不卸载）：全局追踪后台完成任务并亮起未读圆点，选中该任务时自动清除。 */
+export function useUnreadTaskSync(): void {
+  const selectedTaskId = useSelectedTaskId();
+  const tasksState = useTasksState();
+  const prevRunningRef = useRef<Set<TaskId>>(new Set());
+
+  useEffect(() => {
+    const nowRunning = new Set<TaskId>();
+    const completedInBg: TaskId[] = [];
+    for (const task of tasksState.list) {
+      if (task.status === "running" || task.status === "starting") {
+        nowRunning.add(task.id);
+      } else if (
+        prevRunningRef.current.has(task.id) &&
+        task.id !== selectedTaskId &&
+        task.status === "idle" &&
+        task.lastTurn?.status === "completed"
+      ) {
+        completedInBg.push(task.id);
+      }
+    }
+    prevRunningRef.current = nowRunning;
+    if (completedInBg.length > 0) markTasksUnread(completedInBg);
+  }, [tasksState.list, selectedTaskId]);
+
+  useEffect(() => {
+    if (selectedTaskId !== null) clearTaskUnread(selectedTaskId);
+  }, [selectedTaskId]);
+
+  useEffect(() => window.studio.onTaskRemoved((taskId) => clearTaskUnread(taskId)), []);
 }

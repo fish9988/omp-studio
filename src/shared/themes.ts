@@ -5,7 +5,9 @@
 
 export interface ThemeSpec {
   dark: boolean;
-  /** --bg-sidebar：顶栏和侧栏的底色，也是窗口底色和系统三键的底色。 */
+  /** --bg-app：主对话画布和右侧顶栏的底色，也是 Windows 系统三键的底色。 */
+  app: string;
+  /** --bg-sidebar：左侧全高侧栏的底色，也是窗口首帧底色。 */
   sidebar: string;
   /** --text：系统三键的符号色。 */
   text: string;
@@ -17,24 +19,115 @@ export interface ThemeSpec {
 
 /** 排列顺序就是设置页主题画廊的顺序。 */
 export const themes = {
-  light: { dark: false, sidebar: "#fafafa", text: "#161616", scrim: "rgba(20, 20, 19, 0.32)", art: false },
-  dark: { dark: true, sidebar: "#1f1f1f", text: "#fdfdfd", scrim: "rgba(5, 5, 4, 0.56)", art: false },
-  "whale-dark": { dark: true, sidebar: "#0a0f1e", text: "#e6ebf7", scrim: "rgba(3, 6, 14, 0.6)", art: true },
-  "whale-light": { dark: false, sidebar: "#edf1fa", text: "#121a33", scrim: "rgba(10, 16, 36, 0.32)", art: true },
-  sakura: { dark: false, sidebar: "#f9ecf1", text: "#2b1b23", scrim: "rgba(43, 20, 30, 0.3)", art: true },
-  "night-sakura": { dark: true, sidebar: "#120d19", text: "#f2e9f2", scrim: "rgba(6, 3, 10, 0.6)", art: true },
-  leek: { dark: true, sidebar: "#0a1314", text: "#e2f3f1", scrim: "rgba(2, 8, 8, 0.6)", art: true },
-  synthwave: { dark: true, sidebar: "#1a1328", text: "#f6f0ff", scrim: "rgba(8, 4, 16, 0.6)", art: true },
-  matrix: { dark: true, sidebar: "#050906", text: "#c8f5cf", scrim: "rgba(0, 4, 1, 0.65)", art: true },
-  dracula: { dark: true, sidebar: "#21222c", text: "#f8f8f2", scrim: "rgba(10, 10, 16, 0.6)", art: true },
-  "tokyo-night": { dark: true, sidebar: "#16161e", text: "#c0caf5", scrim: "rgba(5, 5, 10, 0.6)", art: true },
-  "catppuccin-latte": { dark: false, sidebar: "#e6e9ef", text: "#4c4f69", scrim: "rgba(30, 32, 48, 0.32)", art: true },
-  "catppuccin-mocha": { dark: true, sidebar: "#181825", text: "#cdd6f4", scrim: "rgba(10, 10, 18, 0.6)", art: true },
-  nord: { dark: true, sidebar: "#272c36", text: "#eceff4", scrim: "rgba(10, 12, 16, 0.6)", art: true },
-  "rose-pine": { dark: true, sidebar: "#16141f", text: "#e0def4", scrim: "rgba(8, 6, 14, 0.6)", art: true },
-  celadon: { dark: false, sidebar: "#e9efe9", text: "#1b2620", scrim: "rgba(15, 25, 20, 0.3)", art: true },
-  ink: { dark: false, sidebar: "#ecebe6", text: "#1a1a18", scrim: "rgba(20, 20, 18, 0.32)", art: true },
-  vermilion: { dark: true, sidebar: "#140d0c", text: "#f3e9e2", scrim: "rgba(10, 4, 3, 0.6)", art: true },
+  light: {
+    dark: false,
+    app: "#ffffff",
+    sidebar: "#fafafa",
+    text: "#161616",
+    scrim: "rgba(20, 20, 19, 0.32)",
+    art: false,
+  },
+  dark: { dark: true, app: "#191919", sidebar: "#1f1f1f", text: "#fdfdfd", scrim: "rgba(5, 5, 4, 0.56)", art: false },
+  "whale-dark": {
+    dark: true,
+    app: "#0f1628",
+    sidebar: "#0a0f1e",
+    text: "#e6ebf7",
+    scrim: "rgba(3, 6, 14, 0.6)",
+    art: true,
+  },
+  "whale-light": {
+    dark: false,
+    app: "#f8faff",
+    sidebar: "#edf1fa",
+    text: "#121a33",
+    scrim: "rgba(10, 16, 36, 0.32)",
+    art: true,
+  },
+  sakura: {
+    dark: false,
+    app: "#fff8fa",
+    sidebar: "#f9ecf1",
+    text: "#2b1b23",
+    scrim: "rgba(43, 20, 30, 0.3)",
+    art: true,
+  },
+  "night-sakura": {
+    dark: true,
+    app: "#1a1424",
+    sidebar: "#120d19",
+    text: "#f2e9f2",
+    scrim: "rgba(6, 3, 10, 0.6)",
+    art: true,
+  },
+  leek: { dark: true, app: "#0f1b1c", sidebar: "#0a1314", text: "#e2f3f1", scrim: "rgba(2, 8, 8, 0.6)", art: true },
+  synthwave: {
+    dark: true,
+    app: "#221a33",
+    sidebar: "#1a1328",
+    text: "#f6f0ff",
+    scrim: "rgba(8, 4, 16, 0.6)",
+    art: true,
+  },
+  matrix: { dark: true, app: "#0a100b", sidebar: "#050906", text: "#c8f5cf", scrim: "rgba(0, 4, 1, 0.65)", art: true },
+  dracula: {
+    dark: true,
+    app: "#282a36",
+    sidebar: "#21222c",
+    text: "#f8f8f2",
+    scrim: "rgba(10, 10, 16, 0.6)",
+    art: true,
+  },
+  "tokyo-night": {
+    dark: true,
+    app: "#1a1b26",
+    sidebar: "#16161e",
+    text: "#c0caf5",
+    scrim: "rgba(5, 5, 10, 0.6)",
+    art: true,
+  },
+  "catppuccin-latte": {
+    dark: false,
+    app: "#eff1f5",
+    sidebar: "#e6e9ef",
+    text: "#4c4f69",
+    scrim: "rgba(30, 32, 48, 0.32)",
+    art: true,
+  },
+  "catppuccin-mocha": {
+    dark: true,
+    app: "#1e1e2e",
+    sidebar: "#181825",
+    text: "#cdd6f4",
+    scrim: "rgba(10, 10, 18, 0.6)",
+    art: true,
+  },
+  nord: { dark: true, app: "#2e3440", sidebar: "#272c36", text: "#eceff4", scrim: "rgba(10, 12, 16, 0.6)", art: true },
+  "rose-pine": {
+    dark: true,
+    app: "#191724",
+    sidebar: "#16141f",
+    text: "#e0def4",
+    scrim: "rgba(8, 6, 14, 0.6)",
+    art: true,
+  },
+  celadon: {
+    dark: false,
+    app: "#f5f8f4",
+    sidebar: "#e9efe9",
+    text: "#1b2620",
+    scrim: "rgba(15, 25, 20, 0.3)",
+    art: true,
+  },
+  ink: { dark: false, app: "#f7f6f1", sidebar: "#ecebe6", text: "#1a1a18", scrim: "rgba(20, 20, 18, 0.32)", art: true },
+  vermilion: {
+    dark: true,
+    app: "#1c1312",
+    sidebar: "#140d0c",
+    text: "#f3e9e2",
+    scrim: "rgba(10, 4, 3, 0.6)",
+    art: true,
+  },
 } as const satisfies Record<string, ThemeSpec>;
 
 export type ThemeName = keyof typeof themes;

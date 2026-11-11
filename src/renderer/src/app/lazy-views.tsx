@@ -20,6 +20,9 @@ const browserPanel = lazyView(() =>
 const filePreviewPane = lazyView(() =>
   import("../features/file-preview/FilePreviewPane.tsx").then((module) => module.FilePreviewPane),
 );
+const gitChangesPanel = lazyView(() =>
+  import("../features/workbench/GitChangesPanel.tsx").then((module) => module.GitChangesPanel),
+);
 const reviewHost = lazyView(() => import("../features/review/ReviewHost.tsx").then((module) => module.ReviewHost));
 const gitDialogHost = lazyView(() => import("../features/git/GitDialogs.tsx").then((module) => module.GitDialogHost));
 const sessionInfoHost = lazyView(() =>
@@ -55,6 +58,7 @@ export const SettingsNav = settingsNav.View;
 export const AgentsPanel = agentsPanel.View;
 export const BrowserPanel = browserPanel.View;
 export const FilePreviewPane = filePreviewPane.View;
+export const GitChangesPanel = gitChangesPanel.View;
 
 export function ReviewHost() {
   const mounted = useLatched(useReviewTaskId() !== null);

@@ -65,6 +65,7 @@ export const settings = {
   "backdropStrength.high": "High",
   glass: "Frosted glass",
   motion: "Reduce motion",
+  homeRipple: "Home glyph ripple",
   shortcuts: "Keyboard shortcuts",
   defaultThinking: "Default thinking level",
   helperModel: "AI helper model (rename & prompt)",

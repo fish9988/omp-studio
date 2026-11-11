@@ -317,3 +317,10 @@ export const Storefront = (props: IconProps) => (
     <path d="M2.5 6.5 3.5 3h9l1 3.5a1.83 1.83 0 0 1-3.67 0 1.83 1.83 0 0 1-3.66 0 1.83 1.83 0 0 1-3.67 0ZM3.5 8.3v5.2h9V8.3M6.5 13.5v-3h3v3" />
   </Icon>
 );
+/** 右栏变更面板：右分栏里带 ± 标记 */
+export const ChangesPane = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+    <path d="M7.5 2.5v11M9.5 6.5h3M11 5v3M9.5 10.5h3" />
+  </Icon>
+);

@@ -884,11 +884,23 @@ export interface UsageDay {
   costUsd: number;
 }
 
+/** 本地时区某一天内单个模型的消耗聚合（来自 stats.db 的 messages 表）。 */
+export interface UsageModelDay {
+  /** YYYY-MM-DD */
+  date: string;
+  model: string;
+  provider: string;
+  requests: number;
+  tokens: number;
+  costUsd: number;
+}
+
 /** 近 365 天每日消耗（omp 的 stats.db，只读）。hasDatabase=false：omp 还没建过这个库（从没跑过 `omp stats`）。 */
 export interface UsageHeatmap {
   from: string;
   to: string;
   days: UsageDay[];
+  models?: UsageModelDay[];
   hasDatabase: boolean;
 }
 
@@ -1021,7 +1033,14 @@ export interface ShellState {
   autoSmartRename?: boolean;
   /** 首选 Shell（同时用于内置终端与 omp 的 bash 工具 shellPath）。 */
   preferredShell?: PreferredShell;
+  /** 会话视图模式：chat = 对话流（紧凑过程组），trajectory = 完整执行轨迹。 */
+  conversationView?: ConversationView;
+  /** 新任务首页背景字符波纹特效开关（默认开启）。 */
+  homeRipple?: boolean;
 }
+
+export type ConversationView = "chat" | "trajectory";
+export const conversationViews: readonly ConversationView[] = ["chat", "trajectory"];
 
 export type BrandStyle = "claude" | "deepseek" | "omp";
 export const brandStyles: readonly BrandStyle[] = ["claude", "deepseek", "omp"];
