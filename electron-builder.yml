@@ -129,6 +129,6 @@ nsis:
 # Linux 的 AppImage 照常检查，读 latest-linux.yml。
 publish:
   provider: github
-  owner: DawnJson
+  owner: fish9988
   repo: omp-studio
   releaseType: release

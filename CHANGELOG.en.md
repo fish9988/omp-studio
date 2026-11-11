@@ -10,6 +10,21 @@ How to write it:
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-11
+
+### Added
+
+- The empty home screen now includes a usage overview card with Overview / Models and 7d / 30d / All toggles, a 26-week activity heatmap, a stacked daily model bar chart, total token stats, and a clickable folder pill to switch the working directory.
+- Added an interactive glyph-wave ripple backdrop on the home screen, with a toggle in Settings → General.
+- When the sidebar is collapsed, moving the pointer to the left window edge temporarily slides out a peek drawer over the main view.
+- The session top bar now supports click-to-rename on the task title, a Conversation / Trajectory view switch, and an Open in menu for opening the workspace in an external editor or file manager.
+- Upgraded the thinking effort popover to a continuous slider with an animated dot-matrix stream, added session duration, message count, and cache-hit telemetry to the input toolbar, and added a pixel mascot waiting bubble.
+- Unified the right inspector into a four-mode workbench (Files / Changes / Subagent / Browser) with an inline Git changes view for staged, unstaged, and untracked diffs.
+
+### Changed
+
+- Redesigned the main window as a flush borderless panel layout with synchronized window backgrounds across all 18 themes and responsive conversation and input widths.
+
 ## [0.4.58] - 2026-11-06
 
 ### Added
