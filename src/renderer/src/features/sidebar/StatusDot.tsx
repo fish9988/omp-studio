@@ -1,5 +1,5 @@
-// 状态图标（spec §4.1）：16×16 槽位里放 14px 的图标，形状 + 颜色双信号——进行中是转动的弧，需要介入是琥珀圆底 !，
-// 已完成是圆圈里一个对勾，失败是红圆底 ×，历史会话中断（停在工具调用 / 长度上限）是虚线圈里一个暂停号。从没跑过和被停止的不画，但槽位保留让标题对齐。
+// 极简侧栏状态点：去掉刺眼的绿圈对勾与红底叉号，仅用克制的微缩几何点表达活跃与异常状态——
+// 进行中是纤细转动的弧，需要介入是带柔光环的琥珀小圆点，失败是柔和暗红小圆点，历史中断是细空心圆环；正常完成与空闲不画图标。
 import type { TFunction } from "../../../../shared/i18n/index.ts";
 import type { SessionSummary, TaskState } from "../../../../shared/ipc.ts";
 import { dotKind, sessionDotKind, type DotKind } from "../../../../shared/ui/sidebar-model.ts";
@@ -11,39 +11,28 @@ function Glyph({ kind }: { kind: Kind }) {
     case "running":
       return (
         <>
-          <circle className="sb-dot-track" cx="8" cy="8" r="6" />
-          <circle className="sb-dot-arc" cx="8" cy="8" r="6" pathLength="100" />
+          <circle className="sb-dot-track" cx="8" cy="8" r="5" />
+          <circle className="sb-dot-arc" cx="8" cy="8" r="5" pathLength="100" />
         </>
       );
     case "waiting":
       return (
         <>
-          <circle className="sb-dot-fill" cx="8" cy="8" r="7" />
-          <rect className="sb-dot-ink" x="7.1" y="3.6" width="1.8" height="5.4" rx="0.9" />
-          <circle className="sb-dot-ink" cx="8" cy="11.6" r="1.05" />
+          <circle className="sb-dot-soft-halo" cx="8" cy="8" r="5.6" />
+          <circle className="sb-dot-fill" cx="8" cy="8" r="3.2" />
         </>
       );
     case "done":
-      return (
-        <>
-          <circle className="sb-dot-ring" cx="8" cy="8" r="6.25" />
-          <path className="sb-dot-stroke" d="M5.3 8.2 7.2 10.1 10.8 6.3" />
-        </>
-      );
+      return <circle className="sb-dot-fill" cx="8" cy="8" r="2.8" />;
     case "error":
       return (
         <>
-          <circle className="sb-dot-fill" cx="8" cy="8" r="7" />
-          <path className="sb-dot-ink-stroke" d="M5.8 5.8 10.2 10.2M10.2 5.8 5.8 10.2" />
+          <circle className="sb-dot-soft-halo" cx="8" cy="8" r="5.2" />
+          <circle className="sb-dot-fill" cx="8" cy="8" r="3" />
         </>
       );
     case "interrupted":
-      return (
-        <>
-          <circle className="sb-dot-ring sb-dot-dashed" cx="8" cy="8" r="6.25" />
-          <path className="sb-dot-stroke" d="M6.4 5.6v4.8M9.6 5.6v4.8" />
-        </>
-      );
+      return <circle className="sb-dot-ring" cx="8" cy="8" r="3.2" />;
   }
 }
 

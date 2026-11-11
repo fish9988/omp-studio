@@ -208,8 +208,8 @@ for (const [locale, colorScheme] of [
       await expect(sidebar.getByTestId("sidebar-folder")).toHaveCount(3);
       await expect(sidebar.getByRole("region", { name: "api server" })).toBeVisible();
       await expect(myApp.getByTestId("sidebar-session")).toContainText("在终端里排查内存泄漏");
-      // 历史会话也带状态图标：会话文件最后一轮正常答完 = 完成的对勾；没有回复的（下面的 notes）不画。
-      await expect(myApp.getByTestId("sidebar-session").locator(".sb-dot-done")).toBeVisible();
+      // 正常完成的历史会话不画刺眼绿勾，保持标题左对齐干净。
+      await expect(myApp.getByTestId("sidebar-session").locator(".sb-dot-done")).toHaveCount(0);
       await expect(myApp.getByTestId("task-row")).toHaveCount(4);
       await expect(sidebar.getByTestId("waiting-strip")).toContainText(words.waitingMany);
       await myApp.getByTestId("sidebar-history-more").click();
@@ -289,11 +289,11 @@ for (const [locale, colorScheme] of [
         element.style.maxHeight = "";
       });
 
-      // 状态点：形状不同，各有 aria-label。
+      // 状态点：只保留需要介入、运行中和轻量报错点，已完成不画绿勾。
       await expect(sidebar.locator(".sb-dot-waiting")).toHaveCount(2);
       await expect(sidebar.locator(".sb-dot-running")).toHaveCount(1);
-      await expect(sidebar.getByTestId("task-row").locator(".sb-dot-done")).toHaveCount(1);
-      await expect(sidebar.getByTestId("sidebar-session").locator(".sb-dot-done")).toHaveCount(1);
+      await expect(sidebar.getByTestId("task-row").locator(".sb-dot-done")).toHaveCount(0);
+      await expect(sidebar.getByTestId("sidebar-session").locator(".sb-dot-done")).toHaveCount(0);
       await expect(sidebar.locator(".sb-dot-error")).toHaveCount(1);
       // 键盘：Tab 进入列表后方向键移动，F2 重命名，Enter 提交。
       const firstRow = sidebar.getByTestId("task-row").first().locator(".sb-row-main");
@@ -421,7 +421,7 @@ test("文件夹里等你确认 / 在跑的任务结束后，自动展开的文�
     const deploy = apiServer.getByTestId("task-row").filter({ hasText: "Deploy pipeline" });
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(deploy.locator(".sb-dot-waiting")).toBeVisible();
-    // 主进程推来：这个任务这一轮结束了（不再等你、也不在跑）。文件夹照旧展开，看得到它变成完成。
+    // 主进程推来：这个任务这一轮结束了（不再等你、也不在跑）。文件夹照旧展开，等待点消失。
     const finished = {
       ...tasks.find((task) => task.id === "t8")!,
       status: "idle",
@@ -430,7 +430,8 @@ test("文件夹里等你确认 / 在跑的任务结束后，自动展开的文�
     await app.evaluate(({ BrowserWindow }, state) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send("studio:event:taskState", state);
     }, finished);
-    await expect(deploy.locator(".sb-dot-done")).toBeVisible();
+    await expect(deploy.locator(".sb-dot-waiting")).toHaveCount(0);
+    await expect(deploy.locator(".sb-dot-done")).toHaveCount(0);
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     // 用户自己点了才折叠。
     await toggle.click();

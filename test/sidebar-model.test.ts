@@ -68,22 +68,37 @@ describe("等你确认", () => {
 });
 
 describe("dotKind", () => {
-  it("等你 > 出错 > 进行中 > 完成；完成不看是否已读，被停止和从没跑过的不画", () => {
+  it("等你 > 出错 > 进行中；已完成、被停止和从没跑过的不画绿勾", () => {
     expect(dotKind(task("t", "p", { status: "needs_you", unread: true }))).toBe("waiting");
     expect(dotKind(task("t", "p", { status: "error" }))).toBe("error");
     expect(dotKind(task("t", "p", { lastTurn: { status: "error", endedAt: 1 } }))).toBe("error");
     expect(dotKind(task("t", "p", { status: "running" }))).toBe("running");
-    expect(dotKind(task("t", "p", { unread: true, lastTurn: { status: "completed", endedAt: 1 } }))).toBe("done");
-    expect(dotKind(task("t", "p", { unread: false, lastTurn: { status: "completed", endedAt: 1 } }))).toBe("done");
+    expect(dotKind(task("t", "p", { unread: true, lastTurn: { status: "completed", endedAt: 1 } }))).toBe("none");
+    expect(dotKind(task("t", "p", { unread: false, lastTurn: { status: "completed", endedAt: 1 } }))).toBe("none");
     expect(dotKind(task("t", "p", { lastTurn: { status: "aborted", endedAt: 1 } }))).toBe("none");
     expect(dotKind(task("t", "p"))).toBe("none");
     expect(dotKind(task("t", "p", { status: "stopped" }))).toBe("none");
   });
+
+  it("剥离宿主指令标签，避免会话标题显示成 <t3_code_instructions>", () => {
+    expect(
+      sessionTitle({
+        title: null,
+        firstPrompt: "<t3_code_instructions>\n## Mode\n</t3_code_instructions>\n帮我优化侧栏样式",
+      }),
+    ).toBe("帮我优化侧栏样式");
+    expect(
+      sessionTitle({
+        title: null,
+        firstPrompt: "<t3_code_instructions>\n## Truncated without closing tag",
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("sessionDotKind（历史会话行）", () => {
-  it("完成 / 失败 / 中断各一个形状；被用户停止、最后是用户消息、认不出的不画", () => {
-    expect(sessionDotKind({ lastTurn: "completed" })).toBe("done");
+  it("失败与中断显示轻量圆点；正常完成、被用户停止、最后是用户消息、认不出的不画", () => {
+    expect(sessionDotKind({ lastTurn: "completed" })).toBe("none");
     expect(sessionDotKind({ lastTurn: "error" })).toBe("error");
     expect(sessionDotKind({ lastTurn: "interrupted" })).toBe("interrupted");
     expect(sessionDotKind({ lastTurn: "aborted" })).toBe("none");

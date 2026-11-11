@@ -184,23 +184,19 @@ export function nextWaitingTask(waiting: readonly TaskState[], current: TaskId |
 
 export type DotKind = "running" | "waiting" | "done" | "error" | "interrupted" | "none";
 
-/** 状态点的形状：形状是第二信号（色盲友好）。"完成"= 空闲且最后一轮正常结束，看过也一直在；从没跑过、被停止的不画。 */
+/** 状态点的形状：只标需要关注的活跃/异常状态（等你确认、运行中、出错）；已完成、被停止和未运行的任务一律不画绿勾，保持标题左缘整洁。 */
 export function dotKind(task: TaskState): DotKind {
   if (task.status === "needs_you") return "waiting";
   if (task.status === "error" || (task.status === "idle" && task.lastTurn?.status === "error")) return "error";
   if (task.status === "running" || task.status === "starting") return "running";
-  if (task.status === "idle" && task.lastTurn?.status === "completed") return "done";
   return "none";
 }
 
 /**
- * 历史会话（还没挂在任务上）的状态点：没有进程，只看会话文件最后一条消息的状态（session-index 的口径，同 omp session-listing）。
- * 画"完成"、"失败"和"中断"（轮次中途断掉：停在工具调用 / 长度上限上，可以继续）；被用户停止、最后一条是用户消息、认不出的不画。
+ * 历史会话（还没挂在任务上）的状态点：正常完成的会话不画绿勾；仅在异常失败或半途中断时给出轻量圆点提示。
  */
 export function sessionDotKind(session: Pick<SessionSummary, "lastTurn">): DotKind {
   switch (session.lastTurn) {
-    case "completed":
-      return "done";
     case "error":
       return "error";
     case "interrupted":

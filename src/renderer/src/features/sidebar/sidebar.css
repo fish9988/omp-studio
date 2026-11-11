@@ -541,6 +541,10 @@
 .sb-dot-fill {
   fill: currentColor;
 }
+.sb-dot-soft-halo {
+  fill: currentColor;
+  opacity: 0.16;
+}
 .sb-dot-ink {
   fill: var(--text-on-accent);
 }
